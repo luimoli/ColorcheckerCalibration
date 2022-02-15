@@ -6,8 +6,8 @@ import pandas as pd
 import scipy.optimize as optimize
 
 from numpy import genfromtxt
-from scipy.optimize import minimize
 from deltaE.deltaE_2000_np import delta_E_CIE2000
+# from verify_img_ccm import img_convert_wccm
 
 M_xyz2rgb=np.array([[3.24096994,-1.53738318,-0.49861076],
                     [-0.96924364,1.8759675,0.04155506],
@@ -116,38 +116,22 @@ def ccm_calculate(rgb_data, lab_ideal):
     x0=np.array([0,0,0,0,0,0])
     func=lambda x : print('x = ',f_DeltaE(x))
     result=optimize.minimize(f_DeltaE,x0,method='Powell',callback=func)
-
     print(result)
     print(x2ccm(result.x))
     pd.DataFrame(x2ccm(result.x)).to_csv('ccm.csv',header=False, index=False)
+
     return x2ccm(result.x)
 
-def conversion(img_rgb, ccm):
-    h, w, c = img_rgb.shape
-    img_rgb_reshape = np.reshape(img_rgb,(h*w, c))
-    # ccres = img_rgb_reshape.mm(ccm)
-    ccres = np.matmul(img_rgb_reshape, ccm)
-    img_d_rgb = np.reshape(ccres, (h,w,c))
-    img_d_rgb[img_d_rgb > 1] = 1
-    img_d_rgb[img_d_rgb < 0] = 0
 
-    img_d_rgb = gamma(img_d_rgb,colorspace='sRGB')
-    # img_d_rgb = img_d_rgb ** (1 / 2.2)
-
-    img_d_rgb[img_rgb == 1] = 1
-    return img_d_rgb
 
 if __name__ == '__main__':
     # # calculate ccm
     # lab_ideal = np.float32(genfromtxt("./data/real_lab_xrite.csv", delimiter=',')) # from X-rite
     lab_ideal = np.float32(genfromtxt("./data/real_lab.csv", delimiter=',')) # from imatest
     rgb_data = np.float32(genfromtxt("./data/measure_rgb_ck2.csv", delimiter=','))
-
     ccm_matrix = ccm_calculate(rgb_data, lab_ideal)
 
-    # # convert img with ccm
-    image_path = r"./img/colorchecker2.jpg"
-    image_bgr = cv2.imread(image_path)  / 255.
-    image_rgb = np.float32(image_bgr[..., ::-1].copy())
-    result_rgb_image = conversion(image_rgb, ccm_matrix)
-    cv2.imwrite(image_path[:-4]+'_' + 'ccm_minimize_2_test'+'.jpg', (result_rgb_image[..., ::-1] * 255.))
+    # image_path = r"./img/colorchecker2.jpg"
+    # img_convert_wccm(image_path, ccm_matrix)
+
+
