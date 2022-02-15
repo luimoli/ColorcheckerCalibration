@@ -139,6 +139,12 @@ cython_debug/
 
 
 .vscode/
-test/
+test.py
 img/
 smv_colour/
+data_tmp/
+Spatial/
+Model/
+ccm.csv
+verify_img_ccm.py
+verify_rgb_conver.py
