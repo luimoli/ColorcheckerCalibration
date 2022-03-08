@@ -149,3 +149,5 @@ ccm.csv
 verify_img_ccm.py
 verify_rgb_conver.py
 verify.py
+data/experiment
+mcc/
