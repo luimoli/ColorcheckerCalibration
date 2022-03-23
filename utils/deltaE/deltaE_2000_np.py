@@ -66,4 +66,12 @@ def delta_E_CIE2000(Lab_1, Lab_2, textiles=False):
                 (delta_C_prime / (k_C * s_C)) * (delta_H_prime /
                                                 (k_H * s_H)) * r_T)
 
+
+    # d_E[12] *= 1.5
+    # d_E[13] *= 2
+    # d_E[14] *= 3
+
+    # d_E[13: 15] *=3
+
+
     return d_E

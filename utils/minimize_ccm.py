@@ -10,108 +10,75 @@ import colour
 # from verify_img_ccm import img_convert_wccm
 
 
-M_xyz2rgb=np.array([[3.24096994,-1.53738318,-0.49861076],
-                    [-0.96924364,1.8759675,0.04155506],
-                    [0.05563008,-0.20397695,1.05697151]])
-M_rgb2xyz=np.array([[0.4123908 , 0.35758434, 0.18048079],
-                    [0.21263901, 0.71516868, 0.07219231],
-                    [0.01933082, 0.11919478, 0.95053216]])
+M_xyz2rgb = np.array([[3.24096994, -1.53738318, -0.49861076],
+                      [-0.96924364, 1.8759675, 0.04155506],
+                      [0.05563008, -0.20397695, 1.05697151]])
+M_rgb2xyz = np.array([[0.4123908, 0.35758434, 0.18048079],
+                      [0.21263901, 0.71516868, 0.07219231],
+                      [0.01933082, 0.11919478, 0.95053216]])
 
-def gamma(x,colorspace='sRGB'):
-    y=np. zeros (x. shape)
-    y[x>1]=1
+
+def gamma(x, colorspace='sRGB'):
+    y = np.zeros(x.shape)
+    y[x > 1] = 1
     if colorspace in ('sRGB', 'srgb'):
-        y[(x>=0)&(x<=0.0031308)]=(323/25*x[ (x>=0)&(x<=0.0031308)])
-        y[(x<=1)&(x>0.0031308)]=(1.055*abs(x[ (x<=1)&(x>0.0031308)])**(1/2.4)-0.055)
+        y[(x >= 0) & (x <= 0.0031308)] = (323 / 25 *
+                                          x[(x >= 0) & (x <= 0.0031308)])
+        y[(x <= 1) & (x > 0.0031308)] = (
+            1.055 * abs(x[(x <= 1) & (x > 0.0031308)])**(1 / 2.4) - 0.055)
     return y
 
-def gamma_reverse(x,colorspace='sRGB'):
-    y=np.zeros(x.shape)
-    y[x>1]=1
+
+def gamma_reverse(x, colorspace='sRGB'):
+    y = np.zeros(x.shape)
+    y[x > 1] = 1
     if colorspace in ('sRGB', 'srgb'):
-        y[(x>=0)&(x<=0.04045)]=x[(x>=0)&(x<=0.04045)]/12.92
-        y[(x>0.04045)&(x<=1)]=((x[(x>0.04045)&(x<=1)]+0.055)/1.055)**2.4     
+        y[(x >= 0) & (x <= 0.04045)] = x[(x >= 0) & (x <= 0.04045)] / 12.92
+        y[(x > 0.04045) & (x <= 1)] = ((x[(x > 0.04045) & (x <= 1)] + 0.055) /
+                                       1.055)**2.4
     return y
+
 
 def im2vector(img):
-    size=img.shape
-    rgb=np.reshape(img,(size[0]*size[1],3))
-    func_reverse=lambda rgb : np.reshape(rgb,(size[0],size[1],size[2]))
+    size = img.shape
+    rgb = np.reshape(img, (size[0] * size[1], 3))
+    func_reverse = lambda rgb: np.reshape(rgb, (size[0], size[1], size[2]))
     return rgb, func_reverse
 
+
 def ccm(img, ccm):
-    if (img.shape[1]==3)&(img.ndim==2):
-        rgb=img
-        func_reverse=lambda x : x    
-    elif (img.shape[2]==3)&(img.ndim==3):
-        (rgb,func_reverse)=im2vector(img)    
-    rgb=rgb.transpose()
-    rgb=ccm@rgb
-    rgb=rgb.transpose()    
-    img_out=func_reverse(rgb)    
+    if (img.shape[1] == 3) & (img.ndim == 2):
+        rgb = img
+        func_reverse = lambda x: x
+    elif (img.shape[2] == 3) & (img.ndim == 3):
+        (rgb, func_reverse) = im2vector(img)
+    rgb = rgb.transpose()
+    rgb = ccm @ rgb
+    rgb = rgb.transpose()
+    img_out = func_reverse(rgb)
     return img_out
 
+
 def rgb2lab(img):
-    if (img.ndim==3):
-        if (img.shape[2]==3):
-            (rgb,func_reverse)=im2vector(img)
-    elif (img.ndim==2):
-        if (img.shape[1]==3):
-            rgb=img
-            func_reverse=lambda x : x
-        elif (img.shape[0]>80)&(img.shape[1]>80):
-            img=np.dstack((img,img,img))
-            (rgb,func_reverse)=im2vector(img)
-    rgb=rgb.transpose()
-    xyz=M_rgb2xyz@rgb
-    xyz=xyz.transpose()
+    if (img.ndim == 3):
+        if (img.shape[2] == 3):
+            (rgb, func_reverse) = im2vector(img)
+    elif (img.ndim == 2):
+        if (img.shape[1] == 3):
+            rgb = img
+            func_reverse = lambda x: x
+        elif (img.shape[0] > 80) & (img.shape[1] > 80):
+            img = np.dstack((img, img, img))
+            (rgb, func_reverse) = im2vector(img)
+    rgb = rgb.transpose()
+    xyz = M_rgb2xyz @ rgb
+    xyz = xyz.transpose()
     xyz_tensor = torch.from_numpy(xyz)
     lab_tensor = smv_colour.XYZ2Lab(xyz_tensor)
     Lab = lab_tensor.cpu().numpy()
     img_out = func_reverse(Lab)
-
     return img_out
 
-# def ccm_calculate(rgb_data, lab_ideal, ccm_space="linear"):
-#     """[summary]
-#     Args:
-#         rgb_data ([N*3]): [the RGB data of color_checker]
-#         lab_ideal ([N*3]): [the ideal value of color_checker]
-#     Returns:
-#         [nparray]: [shape: 3*3]
-#     """
-#     # x2ccm=lambda x : np.array([[1-x[0]-x[1],x[0],x[1]],
-#     #                         [x[2],1-x[2]-x[3],x[3]],
-#     #                         [x[4],x[5],1-x[4]-x[5]]])
-
-#     x2ccm=lambda x : np.array([[1-x[0]-x[1],x[0],x[1]],
-#                             [x[2],1-x[2]-x[3],x[3]],
-#                             [x[4],x[5],1-x[4]-x[5]]])
-                   
-#     # f_lab=lambda x : rgb2lab(gamma(ccm(rgb_data,x2ccm(x)), colorspace='sRGB'))
-#     if ccm_space == "linear":
-#         f_lab=lambda x : rgb2lab(ccm(rgb_data, x2ccm(x)), ccm_space=ccm_space)
-#     elif ccm_space.lower() == "srgb":
-#         f_lab = lambda x: rgb2lab(gamma_reverse(ccm(rgb_data, x2ccm(x)), colorspace='sRGB'), ccm_space=ccm_space)
-
-
-#         # f_lab = lambda x: rgb2lab((ccm(gamma_reverse(rgb_data, colorspace='sRGB'), x2ccm(x))), ccm_space=ccm_space)
-
-#     # # --- deltaE 76
-#     # f_error=lambda x : f_lab(x)-lab_ideal
-#     # f_DeltaE=lambda x : np.sqrt((f_error(x)**2).sum(axis=1,keepdims=True)).mean()
-
-#     # # --- deltaE 00
-#     f_DeltaE=lambda x : delta_E_CIE2000(f_lab(x), lab_ideal).mean()
-
-#     # x0=np.array([0,0,0,0,0,0])
-#     x0 = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0])
-#     func = lambda x: print('x = ', f_DeltaE(x))
-#     result=optimize.minimize(f_DeltaE, x0, method='Powell', callback=func)
-#     print("result delta E:", result.fun)
-#     # pd.DataFrame(x2ccm(result.x)).to_csv('ccm.csv',header=False, index=False)
-
-#     return x2ccm(result.x)
 
 def limit(ccm_matrix, threshold=1.5):
     assert ccm_matrix.shape[0] == ccm_matrix.shape[1] and ccm_matrix.shape[0] == 3
@@ -147,7 +114,7 @@ def ccm_calculate(rgb_data, lab_ideal, ccm_space="linear", mode='default', optim
     x2ccm=lambda x : np.array([[1-x[0]-x[1],x[0],x[1]],
                             [x[2],1-x[2]-x[3],x[3]],
                             [x[4],x[5],1-x[4]-x[5]]])
-    
+
     if ccm_space == "linear":
         f_lab=lambda x : rgb2lab(ccm(rgb_data, x2ccm(x)))
     elif ccm_space.lower() == "srgb":
@@ -188,7 +155,7 @@ def ccm_calculate(rgb_data, lab_ideal, ccm_space="linear", mode='default', optim
         limit_matrix = limit(x2ccm(result.x))
         print(limit_matrix)
         return limit_matrix
-        
+
     else:
         raise ValueError(f'mode value error!')
 
@@ -263,5 +230,3 @@ if __name__ == "__main__":
 
 # image_path = r"./img/colorchecker2.jpg"
 # img_convert_wccm(image_path, ccm_matrix)
-
-

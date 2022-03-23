@@ -1,13 +1,13 @@
 import glob
-
+import torch
 import numpy as np
 import colour
-from utils import detect_color_checker
 import cv2.cv2 as cv2
 
 from utils import minimize_ccm
 from utils import smv_colour
-import torch
+# from utils import detect_color_checker
+from utils import mcc_detect_color_checker
 from utils.minimize_ccm import ccm_calculate
 from utils.deltaE.deltaC_2000_np import delta_C_CIE2000
 
@@ -90,7 +90,7 @@ class ImageColorCorrection:
 
     def update_message_from_colorchecker(self, image):
         assert image.max() <= 1, "image range should be in [0, 1]"
-        self.sorted_centroid, clusters, marker_image = detect_color_checker.detect_color_checker(image)
+        self.sorted_centroid, clusters, marker_image = mcc_detect_color_checker.detect_color_checker(image)
         self.rgb_gain, cc_mean_value = self.compute_rgb_gain_from_colorchecker(image, self.sorted_centroid)
         self.cct = self.compute_cct_from_white_point(1/self.rgb_gain)
         cc_wb_mean_value = cc_mean_value * self.rgb_gain[None]
@@ -144,7 +144,7 @@ class ImageColorCorrection:
 
     def evaluate_result(self, image, image_color_space):
         if self.sorted_centroid is None:
-            self.sorted_centroid, clusters, marker_image = detect_color_checker.detect_color_checker(image)
+            self.sorted_centroid, clusters, marker_image = mcc_detect_color_checker.detect_color_checker(image)
         result_cc_mean = self.calculate_colorchecker_value(image, self.sorted_centroid, 50)
         result_cc_mean = np.clip(result_cc_mean, 0, 1)
         if image_color_space == "srgb":
@@ -157,8 +157,8 @@ class ImageColorCorrection:
 
     def draw_gt_in_image(self, image, image_color_space, deltaE):
         if self.sorted_centroid is None:
-            self.sorted_centroid, clusters, marker_image = detect_color_checker.detect_color_checker(image)
-        image_gt = np.copy(image)
+            self.sorted_centroid, clusters, marker_image = mcc_detect_color_checker.detect_color_checker(image)
+        image_gt = image.copy()
         length = 50
         self.sorted_centroid = np.int32(self.sorted_centroid)
         for i in range(len(self.sorted_centroid)):

@@ -185,11 +185,15 @@ def detect_color_checker(image):
     else:
         blue_centroid, gray_centroid_2 = centroid2, centroid1
 
+    # blue_centroid[1] = 1470
     offset_col = gray_centroid_2 - white_centroid
     offset_row = blue_centroid - white_centroid
 
-    # print("gray_centroid_2:", gray_centroid_2)
-    # print("white_centroid:", white_centroid)
+    
+    print("gray_centroid_2:", gray_centroid_2)
+    print("white_centroid:", white_centroid)
+    print("blue_centroid:", blue_centroid)
+
 
     sorted_centroid = np.empty((24, 2))
     sorted_centroid[18] = white_centroid
@@ -219,6 +223,7 @@ def detect_color_checker(image):
     marker_image = np.copy(image)
     for num, centroid in enumerate(sorted_centroid):
         cv2.putText(marker_image, str(num), np.int32(centroid), cv2.FONT_HERSHEY_SIMPLEX, 2, (255, 255, 0), 2)
+        
     return sorted_centroid, clusters, marker_image
 
 
