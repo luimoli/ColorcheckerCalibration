@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-def generate_calib(image_calib, ccm_space, image_color_space, gt_form, savez_path):
+def generate_calib(image_calib, ccm_space, image_color_space, gt_form, savez_path, ccm_weight=np.ones((24))):
     """This should generate the standalized calibrated CCM.
         'image_calib' is collected under specific illuminant.
 
@@ -16,8 +16,8 @@ def generate_calib(image_calib, ccm_space, image_color_space, gt_form, savez_pat
         gt_form (str): decide  ['xrite', 'imatest]
         savez_path (str): save the calibrated CCM and CCT.
     """
-    config_minimize = {"method": "minimize", "ccm_space": ccm_space}
-    icc_minimize = ImageColorCorrection(config_minimize, gt_form)
+    config_minimize = {"method": "minimize", "ccm_space": ccm_space, "gt_form": gt_form, "ccm_weight": ccm_weight}
+    icc_minimize = ImageColorCorrection(config_minimize)
     icc_minimize.update_message_from_colorchecker(image_calib)
     image_ccm = icc_minimize.image_correction(image_calib, image_color_space, white_balance=True, illumination_gain=True,
                                                     ccm_correction=True)
@@ -36,7 +36,7 @@ def generate_calib(image_calib, ccm_space, image_color_space, gt_form, savez_pat
 
 
 if __name__ == '__main__':
-    ccm_space='linear' # srgb or linear 
+    ccm_space='linear' # srgb or linear
     gt_form='imatest' # imatest or xrite
     savez_path = f"./data/{gt_form}/{ccm_space}/"
     if not os.path.exists(savez_path): os.makedirs(savez_path)
@@ -50,11 +50,18 @@ if __name__ == '__main__':
     # image_A = cv2.imread(r"./data/tmp/raw_616997531.png")[..., ::-1] / 255.
     # plt.figure()
     # plt.imshow(image_A)
+    # plt.show()
     # savez_path_A = savez_path + "A_light.npz"
 
+    ccm_weight = np.array([1, 1, 1, 1, 1, 1, 
+                           1, 1, 1, 1, 1, 1,
+                           1, 1, 1, 1, 1, 1,
+                           1, 1, 1, 1, 1, 1])
 
-    generate_calib(image_calib=image_A, ccm_space=ccm_space, image_color_space='linear', gt_form=gt_form, savez_path=savez_path_A)
-    # plt.show()
-    
+    generate_calib(image_calib=image_A,
+                   ccm_space=ccm_space,
+                   image_color_space='linear',
+                   gt_form=gt_form,
+                   savez_path=savez_path_A,
+                   ccm_weight=ccm_weight)
     exit()
-

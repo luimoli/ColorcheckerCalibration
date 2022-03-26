@@ -92,7 +92,7 @@ def limit(ccm_matrix, threshold=1.5):
                     ccm_matrix[i][j] += (offset/2)
     return ccm_matrix
 
-def ccm_calculate(rgb_data, lab_ideal, ccm_space="linear", mode='default', optimetric='00'):
+def ccm_calculate(rgb_data, lab_ideal, ccm_weight, ccm_space="linear", mode='default', optimetric='00'):
     """[calculate the color correction matrix]
 
     Args:
@@ -125,9 +125,10 @@ def ccm_calculate(rgb_data, lab_ideal, ccm_space="linear", mode='default', optim
 
     if optimetric == '76':
         f_error=lambda x : f_lab(x)-lab_ideal
-        f_DeltaE=lambda x : np.sqrt((f_error(x)**2).sum(axis=1,keepdims=True)).mean()
+        # f_DeltaE=lambda x : np.sqrt((f_error(x)**2).sum(axis=1,keepdims=True)).mean()
+        f_DeltaE=lambda x : (np.sqrt((f_error(x)**2).sum(axis=1)) * ccm_weight).mean()
     elif optimetric == '00':
-        f_DeltaE=lambda x : delta_E_CIE2000(f_lab(x), lab_ideal).mean()
+        f_DeltaE=lambda x : (delta_E_CIE2000(f_lab(x), lab_ideal) * ccm_weight).mean()
     else:
         raise ValueError(f'optimetric value error!')
 

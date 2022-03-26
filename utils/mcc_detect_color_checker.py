@@ -30,6 +30,7 @@ def CGetCheckerCentroid(checker):
 
 def detect_color_checker(image):
     # image = image / 255
+    image = image[:, :, ::-1].copy()
     image = image ** (1 / 2.2) * 255
     image = np.uint8(image)
     detector = cv2.mcc.CCheckerDetector_create()
@@ -50,12 +51,14 @@ def detect_color_checker(image):
 
     sorted_centroid = CGetCheckerCentroid(checker)
     marker_image = image.copy()
-    # print(sorted_centroid)
     for num, centroid in enumerate(sorted_centroid):
         cv2.putText(marker_image, str(num), np.int32(centroid), cv2.FONT_HERSHEY_SIMPLEX, 2, (255, 255, 0), 2)
 
     sorted_centroid = np.array(sorted_centroid)
-
+    # print(sorted_centroid)
+    # plt.figure()
+    # plt.imshow(marker_image[:, :, ::-1].copy())
+    # plt.show()
     return sorted_centroid, sorted_centroid, marker_image
 
 

@@ -10,6 +10,8 @@ from utils import smv_colour
 from utils import mcc_detect_color_checker
 from utils.minimize_ccm import ccm_calculate
 from utils.deltaE.deltaC_2000_np import delta_C_CIE2000
+from utils.deltaE.deltaE_2000_np import delta_E_CIE2000
+
 
 
 ideal_lab_1 = np.float32(np.loadtxt("./data/real_lab_xrite.csv", delimiter=',')) # from x-rite
@@ -18,7 +20,7 @@ ideal_lab_2 = np.float32(np.loadtxt("./data/real_lab_imatest.csv", delimiter=','
 
 
 class ImageColorCorrection:
-    def __init__(self, config, gt_form, show_log=False):
+    def __init__(self, config, show_log=False):
         """_summary_
 
         Args:
@@ -33,7 +35,7 @@ class ImageColorCorrection:
         self.cct = None
         self.ccm = np.eye(3, k=1)
 
-        self.ideal_lab = ideal_lab_1 if gt_form == 'xrite' else ideal_lab_2
+        self.ideal_lab = ideal_lab_1 if self.config['gt_form'] == 'xrite' else ideal_lab_2
         self.ideal_linear_rgb = smv_colour.XYZ2RGB(smv_colour.Lab2XYZ(torch.from_numpy(self.ideal_lab)), 'bt709').numpy()
         self.ideal_srgb = minimize_ccm.gamma(self.ideal_linear_rgb)
         self.sorted_centroid = None
@@ -105,7 +107,7 @@ class ImageColorCorrection:
         if self.config["method"] == "minimize":
             if self.config["ccm_space"].lower() == "srgb":
                 cc_wb_ill_mean_value = minimize_ccm.gamma(cc_wb_ill_mean_value)
-            self.ccm = ccm_calculate(cc_wb_ill_mean_value, self.ideal_lab, self.config["ccm_space"])
+            self.ccm = ccm_calculate(cc_wb_ill_mean_value, self.ideal_lab, self.config["ccm_weight"], self.config["ccm_space"])
             
         if self.config["method"] == "predict":
             self.ccm = self.predict_ccm_micheal(self.cct, self.config["cct1"], self.config["cct2"],
@@ -152,7 +154,8 @@ class ImageColorCorrection:
         else:
             result_cc_mean_lab = self.rgb2lab(result_cc_mean)
         deltaC = delta_C_CIE2000(result_cc_mean_lab, self.ideal_lab)
-        deltaE = colour.delta_E(result_cc_mean_lab, self.ideal_lab, 'CIE 2000')
+        # deltaE = colour.delta_E(result_cc_mean_lab, self.ideal_lab, 'CIE 2000')
+        deltaE = delta_E_CIE2000(result_cc_mean_lab, self.ideal_lab)
         return deltaC, deltaE
 
     def draw_gt_in_image(self, image, image_color_space, deltaE):
