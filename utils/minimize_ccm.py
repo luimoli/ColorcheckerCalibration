@@ -47,16 +47,16 @@ def im2vector(img):
 
 
 def ccm(img, ccm):
-    if (img.shape[1] == 3) & (img.ndim == 2):
-        rgb = img
-        func_reverse = lambda x: x
-    elif (img.shape[2] == 3) & (img.ndim == 3):
-        (rgb, func_reverse) = im2vector(img)
-    rgb = rgb.transpose()
+    # if (img.shape[1] == 3) & (img.ndim == 2):
+    #     rgb = img
+    #     func_reverse = lambda x: x
+    # elif (img.shape[2] == 3) & (img.ndim == 3):
+    #     (rgb, func_reverse) = im2vector(img)
+    rgb = img.transpose()
     rgb = ccm @ rgb
     rgb = rgb.transpose()
-    img_out = func_reverse(rgb)
-    return img_out
+    # img_out = func_reverse(rgb)
+    return rgb
 
 
 def rgb2lab(img):
@@ -92,7 +92,10 @@ def limit(ccm_matrix, threshold=1.5):
                     ccm_matrix[i][j] += (offset/2)
     return ccm_matrix
 
-def ccm_calculate(rgb_data, lab_ideal, ccm_weight, ccm_space="linear", mode='default', optimetric='00'):
+
+
+
+def ccm_calculate(rgb_data, lab_ideal, ccm_weight, ccm_space="linear", mode='default_wo_row', optimetric='00'):
     """[calculate the color correction matrix]
 
     Args:
@@ -103,6 +106,7 @@ def ccm_calculate(rgb_data, lab_ideal, ccm_weight, ccm_space="linear", mode='def
                                 default: white balance constrain: the sum of row is 1.
                                 constrain_1.5: constrain the diagonal value to be less than 1.5 when calculating CCM.
                                 limit_1.5: limit CCM's diagonal value after calculation.
+                                default_wo_row: 
         optimetric (str, optional): the metric of CCM optimization:['00', 76']. Defaults to '00'.
     Raises:
         ValueError: _description_
@@ -111,9 +115,20 @@ def ccm_calculate(rgb_data, lab_ideal, ccm_weight, ccm_space="linear", mode='def
     Returns:
         [array]: [CCM with shape: 3*3]
     """
-    x2ccm=lambda x : np.array([[1-x[0]-x[1],x[0],x[1]],
-                            [x[2],1-x[2]-x[3],x[3]],
-                            [x[4],x[5],1-x[4]-x[5]]])
+    if rgb_data.shape[1] == 3:
+        if mode == 'default_wo_row':
+            x2ccm=lambda x : np.array([[x[0], x[1],x[2]],
+                                      [x[3], x[4], x[5]],
+                                      [x[6],x[7],x[8]]])
+        else:     
+            x2ccm=lambda x : np.array([[1-x[0]-x[1],x[0],x[1]],
+                                    [x[2],1-x[2]-x[3],x[3]],
+                                    [x[4],x[5],1-x[4]-x[5]]])
+    else:
+        x2ccm=lambda x : np.array([[x[0], x[1], x[2], x[3], x[4], x[5], x[6], x[7], x[8]],
+                            [x[9], x[10], x[11], x[12], x[13], x[14], x[15], x[16], x[17]],
+                            [x[18], x[19], x[20], x[21], x[22], x[23], x[24], x[25], x[26]]])
+
 
     if ccm_space == "linear":
         f_lab=lambda x : rgb2lab(ccm(rgb_data, x2ccm(x)))
@@ -128,14 +143,24 @@ def ccm_calculate(rgb_data, lab_ideal, ccm_weight, ccm_space="linear", mode='def
         # f_DeltaE=lambda x : np.sqrt((f_error(x)**2).sum(axis=1,keepdims=True)).mean()
         f_DeltaE=lambda x : (np.sqrt((f_error(x)**2).sum(axis=1)) * ccm_weight).mean()
     elif optimetric == '00':
-        f_DeltaE=lambda x : (delta_E_CIE2000(f_lab(x), lab_ideal) * ccm_weight).mean()
+        # f_DeltaE=lambda x : (delta_E_CIE2000(f_lab(x), lab_ideal) * ccm_weight).mean()
+        f_DeltaE=lambda x : ((delta_E_CIE2000(f_lab(x), lab_ideal) * ccm_weight)**2).mean()
     else:
         raise ValueError(f'optimetric value error!')
 
-    x0=np.array([0,0,0,0,0,0])
+    if rgb_data.shape[1] == 3:
+        if mode == 'default_wo_row':
+            # x0 = np.array([1,0,0, 0,1,0, 0,0,1])
+            x0 = np.zeros((9))
+            # x0 = np.ones((9))
+        else:
+            x0=np.array([0,0,0,0,0,0])
+    else:
+        x0=np.zeros((27))
+
     func=lambda x : print('deltaE_00 = ',f_DeltaE(x))
 
-    if mode == 'default':
+    if mode == 'default' or mode == 'default_wo_row':
         result=optimize.minimize(f_DeltaE, x0, callback=func, method='Powell')
         print('minimize average deltaE00: ', result.fun)
         print(x2ccm(result.x))

@@ -70,8 +70,13 @@ def delta_E_CIE2000(Lab_1, Lab_2, textiles=False):
     # d_E[12] *= 1.5
     # d_E[13] *= 2
     # d_E[14] *= 3
-
     # d_E[13: 15] *=3
+    # print("***********************")
+    # print(Lab_1[6], Lab_2[6],d_E[6])
+    # print(Lab_1[11], Lab_2[11],d_E[11])
+    # print(Lab_1[14], Lab_2[14],d_E[14])
+    # print(Lab_1[18], Lab_2[18],d_E[18])
+
 
 
     return d_E

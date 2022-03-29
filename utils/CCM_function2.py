@@ -6,7 +6,7 @@ import cv2.cv2 as cv2
 
 from utils import minimize_ccm
 from utils import smv_colour
-# from utils import detect_color_checker
+from utils import detect_color_checker
 from utils import mcc_detect_color_checker
 from utils.minimize_ccm import ccm_calculate
 from utils.deltaE.deltaC_2000_np import delta_C_CIE2000
@@ -107,6 +107,16 @@ class ImageColorCorrection:
         if self.config["method"] == "minimize":
             if self.config["ccm_space"].lower() == "srgb":
                 cc_wb_ill_mean_value = minimize_ccm.gamma(cc_wb_ill_mean_value)
+
+            cc_wb_ill_mean_value2 = np.empty((24, 9))
+            cc_wb_ill_mean_value2[:, 0:3] = cc_wb_ill_mean_value
+            cc_wb_ill_mean_value2[:, 3] = cc_wb_ill_mean_value[:, 0] * cc_wb_ill_mean_value[:, 0]
+            cc_wb_ill_mean_value2[:, 4] = cc_wb_ill_mean_value[:, 1] * cc_wb_ill_mean_value[:, 1]
+            cc_wb_ill_mean_value2[:, 5] = cc_wb_ill_mean_value[:, 2] * cc_wb_ill_mean_value[:, 2]
+            cc_wb_ill_mean_value2[:, 6] = cc_wb_ill_mean_value[:, 0] * cc_wb_ill_mean_value[:, 1]
+            cc_wb_ill_mean_value2[:, 7] = cc_wb_ill_mean_value[:, 0] * cc_wb_ill_mean_value[:, 2]
+            cc_wb_ill_mean_value2[:, 8] = cc_wb_ill_mean_value[:, 1] * cc_wb_ill_mean_value[:, 2]
+
             self.ccm = ccm_calculate(cc_wb_ill_mean_value, self.ideal_lab, self.config["ccm_weight"], self.config["ccm_space"])
             
         if self.config["method"] == "predict":
