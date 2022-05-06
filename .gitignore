@@ -141,7 +141,7 @@ cython_debug/
 .vscode/
 test.py
 img/
-utils/smv_colour/
+# utils/smv_colour/
 utils/smv_colour_py
 data_tmp/
 Spatial/
