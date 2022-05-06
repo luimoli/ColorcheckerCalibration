@@ -1,16 +1,19 @@
 import os
-# from time import CLOCK_MONOTONIC_RAW
-from utils.CCM_function2 import ImageColorCorrection
-import cv2.cv2 as cv2
+os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
+
+import torch
 import numpy as np
 import matplotlib.pyplot as plt
+import cv2.cv2 as cv2
+
+from utils.ImageColorCalibration import ImageColorCorrection
 from utils import smv_colour
-import torch
+
 
 
 def generate_calib(image_calib, ccm_space, image_color_space, gt_form, savez_path, ccm_weight=np.ones((24))):
     """This should generate the standalized calibrated CCM.
-        'image_calib' is collected under specific illuminant.
+        'image_calib' is collected under specific illuminant. 
 
     Args:
         image_calib (array): sensor-RGB-IMG
@@ -25,16 +28,15 @@ def generate_calib(image_calib, ccm_space, image_color_space, gt_form, savez_pat
     image_ccm = icc_minimize.image_correction(image_calib, image_color_space, white_balance=True, illumination_gain=True,
                                                     ccm_correction=True)
     cv2.imwrite('img_ccm.png',image_ccm[...,::-1]**(1/2.2)*255.)
-    deltaC, deltaE = icc_minimize.evaluate_result(image_ccm, "linear")
-    plt.figure()
-    plt.imshow(image_ccm**(1/2.2))
-    image_with_gt = icc_minimize.draw_gt_in_image(image_ccm, "linear", deltaE)
+
+    deltaC, deltaE00, deltaE76 = icc_minimize.evaluate_result(image_ccm, "linear")
+    image_with_gt = icc_minimize.draw_gt_in_image(image_ccm, "linear", deltaC)
     image_with_gt = np.clip(image_with_gt, 0, 1)
     cv2.imwrite('img_ccm_gt.png', image_with_gt[...,::-1]**(1/2.2)*255.)
-    
 
-    print('deltaC, deltaE:  ', deltaC.mean(), deltaE.mean())
-    # plt.show()
+    print('deltaC00, deltaE00: ', deltaC.mean(), deltaE00.mean())
+    # print('deltaC[18:], deltaE00[18:], ', deltaC[18:].mean(), deltaE00[18:].mean())
+
     ccm_cur = icc_minimize.ccm
     cct_cur = icc_minimize.cct
     np.savez(savez_path, cct=cct_cur, ccm=ccm_cur)
@@ -58,37 +60,49 @@ if __name__ == '__main__':
     savez_path = f"./data/{gt_form}/{ccm_space}/"
     if not os.path.exists(savez_path): os.makedirs(savez_path)
 
-    # image_d65 = cv2.imread(r"./data/mindvision/d65_colorchecker.jpg")[..., ::-1] / 255.
-    # savez_path_d65 = savez_path + "D65_light.npz"
+    # image = cv2.imread(r"./data/mindvision/d65_colorchecker.jpg")[..., ::-1] / 255.
+    # savez_path = savez_path + "D65_light.npz"
+    # image = cv2.imread(r"./data/mindvision/exposure30.jpg")[..., ::-1] / 255.
+    # savez_path = savez_path + "A_light.npz"
 
-    image_A = cv2.imread(r"./data/mindvision/exposure30.jpg")[..., ::-1] / 255.
-    savez_path_A = savez_path + "A_light.npz"
+    image = (cv2.imread(r"./data/mindvision/mv_2300.PNG")[..., ::-1] - 0) / 255.
+    savez_path = savez_path + "A_light.npz"
+    # image = cv2.imread(r"./data/mindvision/mv_8000.PNG")[..., ::-1] / 255.
+    # savez_path = savez_path + "D65_light.npz"
 
-    # image_A = cv2.imread(r"./data/tmp/raw_616997531.png")[..., ::-1] / 255.
-    # savez_path_A = savez_path + "A_light.npz"
+    # image = cv2.imread(r"./data/mindvision/mvmv_2300.png", -1) / 65535.
+    # savez_path = savez_path + "D65_light.npz"
+
+    # image = cv2.imread(r"./data/tmp/raw_616997531.png")[..., ::-1] / 255.
+    # savez_path = savez_path + "A_light.npz"
+
+    
 
     ccm_weight = np.array([1, 1, 1, 1, 1, 1, 
-                           1, 10, 1, 1, 1, 1,
-                           10, 1, 1, 1, 1, 1,
+                           1, 1, 1, 1, 1, 1,
+                           1, 1, 1, 1, 1, 1,
                            1, 1, 1, 1, 1, 1])
+    
 
-    ccm_weight = np.zeros((24))
-    # ccm_weight[1] = 1
-    ccm_weight[6] = 1
-    ccm_weight[11] = 1
-    ccm_weight[14] = 1
-    ccm_weight[18] = 1
+    # ccm_weight[[i for i in range(1, 25, 2)]] = 0
 
 
 
-    # gwt = generate_weight(1, 3, 'r')
-    # gwt[14] = 5
-
-
-    generate_calib(image_calib=image_A,
+    generate_calib(image_calib=image,
                    ccm_space=ccm_space,
                    image_color_space='linear',
                    gt_form=gt_form,
-                   savez_path=savez_path_A,
+                   savez_path=savez_path,
                    ccm_weight=ccm_weight)
+    
+
+    # image_ = cv2.imread(r"./data/tmp/image_D65.bmp")[..., ::-1] / 255.
+    # config_minimize = {"method": "minimize", "ccm_space": ccm_space, "gt_form": gt_form, "ccm_weight": ccm_weight}
+    # icc_minimize = ImageColorCorrection(config_minimize)
+    # deltaC, deltaE00, deltaE76 = icc_minimize.evaluate_result(image_, 'srgb')
+    # image_with_gt = icc_minimize.draw_gt_in_image(image_, "linear", deltaC)
+    # image_with_gt = np.clip(image_with_gt, 0, 1)
+    # cv2.imwrite(r'./data/tmp/image_D65_gt.bmp', image_with_gt[...,::-1]*255.)
+    # print('deltaC, deltaE00, deltaE76:  ', deltaC.mean(), deltaE00.mean(), deltaE76.mean())
+
     exit()

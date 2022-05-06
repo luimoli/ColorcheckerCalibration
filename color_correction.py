@@ -1,5 +1,5 @@
 from utils import minimize_ccm
-from utils.CCM_function2 import ImageColorCorrection
+from utils.ImageColorCalibration import ImageColorCorrection
 import cv2.cv2 as cv2
 import matplotlib.pyplot as plt
 import numpy as np
