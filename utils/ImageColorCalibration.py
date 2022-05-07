@@ -255,6 +255,10 @@ class ImageColorCalibration:
                 raise ValueError('currently not supported constrain value in 3*4 CCM.')
 
         else:
+            # x0 = np.array([1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0])
+            # x0 = np.array([1, 0, 0, 0.5, 0, 1, 0, 0.5, 0, 0, 1, 0.5])
+            x0 = np.zeros(12)
+
             result=optimize.minimize(f_DeltaE, x0, callback=func, method='Powell')
 
         print('minimize average deltaE00: ', result.fun)

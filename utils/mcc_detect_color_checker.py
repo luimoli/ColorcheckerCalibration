@@ -57,7 +57,7 @@ def detect_colorchecker(image):
     """
     # image = image / 255
     image = image[:, :, ::-1].copy()
-    image = image ** (1 / 2.2) * 255
+    image = image * 255
     image = np.uint8(image)
     detector = cv2.mcc.CCheckerDetector_create()
     detector.process(image, cv2.mcc.MCC24, 1, True)
@@ -86,7 +86,7 @@ def detect_colorchecker(image):
     # plt.figure()
     # plt.imshow(marker_image[:, :, ::-1].copy())
     # plt.show()
-    return sorted_centroid, sorted_centroid, marker_image
+    return sorted_centroid, src, marker_image
 
 
 
