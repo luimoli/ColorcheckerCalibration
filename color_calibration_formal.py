@@ -13,18 +13,16 @@ from utils.mcc_detect_color_checker import detect_colorchecker_value
 from utils.evaluate_result import evaluate
 
 
-
-
 photo_path = r"./data/mindvision/mvmv_2300.png"
 image = cv2.imread(photo_path, -1) / 65535.
 cc_mean_value = detect_colorchecker_value(image)
 model = ImageColorCalibration(src_for_ccm=cc_mean_value, colorchecker_gt_mode=2)
-# model.setCCM_METHOD('polynominal')
+model.setCCM_METHOD('minimize')
 model.setColorSpace('linear')
 model.setCCM_TYPE('3x4')
 model.setCCM_RowSum1(False)
-model.run()
 
+model.run()
 print(model.getCCM())
 
 calibratedImage = model.infer(image, image_color_space='linear', output_color_space='linear')

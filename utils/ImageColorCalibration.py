@@ -29,13 +29,14 @@ class ImageColorCalibration:
         self.cct = None
 
         self.ideal_lab = None
-        # self.ideal_linear_rgb = None
+        self.ideal_linear_rgb = None
         self.setColorChecker_Lab(mode=colorchecker_gt_mode)
 
         self.__colorspace = 'linear'
         self.__ccm = np.eye(3, k=1)
         self.__ccm_method = 'minimize'
         self.__ccm_weight = np.ones((self.ideal_lab.shape[0]))
+        self.__ccm_masks = src_for_ccm < (240 / 255)
         self.__ccm_type = '3x3'
         self.__ccm_metric = 'CIE2000'
         self.__ccm_rowsum1 = True
@@ -56,7 +57,7 @@ class ImageColorCalibration:
         ideal_lab_3 = np.float32(np.loadtxt("./data/real_lab_d50_3ns.csv", delimiter=','))  # from 3nh
         ideal_lab_dic = {1:ideal_lab_1, 2: ideal_lab_2, 3: ideal_lab_3}
         self.ideal_lab = ideal_lab_dic[mode]
-        # self.ideal_linear_rgb = smv_colour.XYZ2RGB(smv_colour.Lab2XYZ(torch.from_numpy(self.ideal_lab)), 'bt709').numpy()
+        self.ideal_linear_rgb = lab2rgb(self.ideal_lab)
 
     def setColorSpace(self, space):
         """set the colorspace when calculating CCM.
@@ -74,8 +75,15 @@ class ImageColorCalibration:
         assert arr.shape[0] == self.ideal_lab.shape[0] and arr.ndim == 1
         self.__ccm_weight = arr
 
-    def getCCMWeight(self):
+    def getCCM_WEIGHT(self):
         return self.__ccm_weight
+    
+    def setCCM_MASKS(self, arr):
+        assert arr.shape[0] == self.ideal_lab.shape[0] and arr.ndim == 1
+        self.__ccm_masks = arr
+    
+    def getCCM_MASKS(self):
+        return self.__ccm_masks
 
 
     def setCCM_TYPE(self, type):
@@ -124,15 +132,14 @@ class ImageColorCalibration:
 
     def compute_rgb_gain_from_colorchecker(self, mean_value):
         # assert image.max() <= 1, "image range should be in [0, 1]"
-        # mean_value = self.calculate_colorchecker_value(image, sorted_centroid, 50)
         gain = np.max(mean_value[18:], axis=1)[:, None] / mean_value[18:, ]
         rgb_gain = gain[0:3].mean(axis=0)
-        # return rgb_gain, mean_value
         return rgb_gain
 
 
     def compute_cct_from_white_point(self, white_point):
-        xyY = smv_colour.XYZ2xyY(smv_colour.RGB2XYZ(torch.from_numpy(np.float32(white_point)), "bt709"))
+        xyz = smv_colour.RGB2XYZ(torch.from_numpy(np.float32(white_point)), "bt709")
+        xyY = smv_colour.XYZ2xyY(xyz)
         cct = smv_colour.xy2CCT(xyY[0:2])
         return cct
 
@@ -142,9 +149,12 @@ class ImageColorCalibration:
         self.cct = self.compute_cct_from_white_point( 1 / self.rgb_gain)
 
         cc_wb_mean_value = self.cc_mean_value * self.rgb_gain[None]
-        self.illumination_gain = (lab2rgb(self.ideal_lab)[18:21] / cc_wb_mean_value[18:21]).mean()
+        self.illumination_gain = (self.ideal_linear_rgb[18:21] / cc_wb_mean_value[18:21]).mean()
         cc_wb_ill_mean_value = self.illumination_gain * cc_wb_mean_value
-
+        
+        self.__ccm_masks = cc_wb_ill_mean_value < 1
+        cc_wb_ill_mean_value = cc_wb_ill_mean_value * self.__ccm_masks[..., None]
+        
 
         if self.__ccm_method == "minimize":
             if self.__colorspace.lower() == "srgb":
@@ -164,10 +174,6 @@ class ImageColorCalibration:
             cc_wb_ill_mean_value2[:, 7] = cc_wb_ill_mean_value[:, 0] * cc_wb_ill_mean_value[:, 2]
             cc_wb_ill_mean_value2[:, 8] = cc_wb_ill_mean_value[:, 1] * cc_wb_ill_mean_value[:, 2]
             self.__ccm = self.ccm_calculate(cc_wb_ill_mean_value2)
-
-        # if self.config["method"] == "predict":
-        #     self.__ccm = self.predict_ccm_micheal(self.cct, self.config["cct1"], self.config["cct2"],
-        #                                         self.config["ccm1"], self.config["ccm2"])
 
 
     def apply_ccm(self, img, ccm):
@@ -194,29 +200,29 @@ class ImageColorCalibration:
                                             [x[2],1-x[2]-x[3],x[3]],
                                             [x[4],x[5],1-x[4]-x[5]]])
                     x0 = np.zeros((6))
-
+                    
                 else:
                     x2ccm=lambda x : np.array([[x[0], x[1],x[2]],
                                             [x[3], x[4], x[5]],
                                             [x[6],x[7],x[8]]])
-                    x0 = np.zeros((9))
-                    x0 = np.random.random((9))
+                    # x0 = np.zeros((9))
+                    x0 = np.array([[self.ideal_linear_rgb[..., 0].mean() / rgb_data[..., 0].mean(), 0, 0],
+                                   [0, self.ideal_linear_rgb[..., 1].mean() / rgb_data[..., 1].mean(), 0],
+                                   [0, 0, self.ideal_linear_rgb[..., 2].mean() / rgb_data[..., 2].mean()]])
 
             elif self.__ccm_type == '3x4':
                 if self.__ccm_rowsum1:
-                    raise ValueError(f'__ccm_rowsum1 is not supported when self.__ccm_type is {self.__ccm_type}!')
-                    # x2ccm=lambda x : np.array([[1-x[0]-x[1],x[0],x[1], x[6]],
-                    #                            [x[2],1-x[2]-x[3],x[3], x[7]],
-                    #                            [x[4],x[5],1-x[4]-x[5], x[8]]])
-                    # x0 = np.array([0,0, 0,0, 0,0, 1, 1, 1])
+                    x2ccm=lambda x : np.array([[1-x[0]-x[1],x[0],x[1], x[6]],
+                                               [x[2],1-x[2]-x[3],x[3], x[7]],
+                                               [x[4],x[5],1-x[4]-x[5], x[8]]])
+                    x0 = np.zeros((9))
                 else:
                     x2ccm=lambda x : np.array([[x[0], x[1], x[2], x[3]],
                                                [x[4], x[5], x[6], x[7]],
                                                [x[8], x[9], x[10], x[11]]])
-                    # x0 = np.zeros((12))
-                    # x0 = np.random.random((12))
-                    # x0 = np.ones((12))
-                    # x0 = np.array([1,0,0,1,0,1,0,1,0,0,1,1])
+                    x0 = np.array([[self.ideal_linear_rgb[..., 0].mean() / rgb_data[..., 0].mean(), 0, 0, 0],
+                                   [0, self.ideal_linear_rgb[..., 1].mean() / rgb_data[..., 1].mean(), 0, 0],
+                                   [0, 0, self.ideal_linear_rgb[..., 2].mean() / rgb_data[..., 2].mean(), 0]])
 
         elif self.__ccm_method.lower() == 'polynominal':
             x2ccm=lambda x : np.array([[x[0], x[1], x[2], x[3], x[4], x[5], x[6], x[7], x[8]],
@@ -271,7 +277,6 @@ class ImageColorCalibration:
     def infer(self,
               img,
               image_color_space,
-              output_color_space,
               white_balance=True,
               illumination_gain=True,
               ccm_correction=True):
