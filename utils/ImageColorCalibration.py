@@ -6,7 +6,6 @@ import scipy.optimize as optimize
 import matplotlib.pyplot as plt
 
 from utils import smv_colour
-
 from utils.deltaE.deltaC_2000_np import delta_C_CIE2000
 from utils.deltaE.deltaE_2000_np import delta_E_CIE2000
 from utils.mcc_detect_color_checker import detect_colorchecker_value, detect_colorchecker
