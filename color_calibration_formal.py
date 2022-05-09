@@ -25,7 +25,7 @@ model.setCCM_RowSum1(False)
 model.run()
 print(model.getCCM())
 
-calibratedImage = model.infer(image, image_color_space='linear', output_color_space='linear')
+calibratedImage = model.infer(image, image_color_space='linear')
 deltaC, deltaE00, img_with_gt = evaluate(calibratedImage, model.ideal_lab, 'linear', 'deltaC')
 img_with_gt = np.clip(img_with_gt, 0, 1)
 print('deltaC00, deltaE00: ', deltaC.mean(), deltaE00.mean())

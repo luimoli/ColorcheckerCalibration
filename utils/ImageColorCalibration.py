@@ -1,9 +1,12 @@
+from matplotlib import axis
 import torch
 import numpy as np
 import colour
 import cv2.cv2 as cv2
 import scipy.optimize as optimize
 import matplotlib.pyplot as plt
+import sys
+sys.path.append('./utils')
 
 from utils import smv_colour
 from utils.deltaE.deltaC_2000_np import delta_C_CIE2000
@@ -20,10 +23,7 @@ class ImageColorCalibration:
             src_for_ccm (arr): src rgb-colorchecker-data(eg.with shape [24,3])
             colorchecker_gt_mode (int): 1: xrite, 2: imatest, 3: 3nh
         """
-        # self.config = config
-        # print(self.config)
-        # self.show_log = show_log
-
+        self.cc_mean_value = src_for_ccm
         self.rgb_gain = np.array([1, 1, 1])
         self.illumination_gain = 1
         self.cct = None
@@ -33,19 +33,20 @@ class ImageColorCalibration:
         self.setColorChecker_Lab(mode=colorchecker_gt_mode)
 
         self.__colorspace = 'linear'
-        self.__ccm = np.eye(3, k=1)
+        self.__ccm = np.eye(3)
         self.__ccm_method = 'minimize'
         self.__ccm_weight = np.ones((self.ideal_lab.shape[0]))
-        self.__ccm_masks = src_for_ccm < (240 / 255)
+        self.__ccm_masks = self.checkExposure(src_for_ccm)
         self.__ccm_type = '3x3'
         self.__ccm_metric = 'CIE2000'
         self.__ccm_rowsum1 = True
         self.__ccm_constrain = 0
 
-        self.sorted_centroid = None
-        self.cc_mean_value = src_for_ccm
-
-        # self.ccm_dict_path = ccm_dict_path
+    def checkExposure(self, arr, thresh=1):
+        masks = arr.max(axis=1) < thresh
+        if masks.sum() < self.ideal_lab.shape[0]:
+            raise ValueError(f'over exposure! sum of ccm_masks is {masks.sum()}')
+        return masks
 
     def setColorChecker_Lab(self, mode):
         """set groundtruth of colorchecker.
@@ -68,7 +69,7 @@ class ImageColorCalibration:
         self.__colorspace = space
 
     def setCCM_WEIGHT(self, arr):
-        """_summary_
+        """set each color's weight in CCM.
         Args:
             arr (array): the weight for colorcheckers' patches of CCM.
         """
@@ -77,11 +78,15 @@ class ImageColorCalibration:
 
     def getCCM_WEIGHT(self):
         return self.__ccm_weight
-    
+
     def setCCM_MASKS(self, arr):
+        """set masks of CCM calculation.
+        Args:
+            arr (array): shape:[N], corresponding to the number of colorchecke's patches.
+        """
         assert arr.shape[0] == self.ideal_lab.shape[0] and arr.ndim == 1
         self.__ccm_masks = arr
-    
+
     def getCCM_MASKS(self):
         return self.__ccm_masks
 
@@ -151,17 +156,12 @@ class ImageColorCalibration:
         cc_wb_mean_value = self.cc_mean_value * self.rgb_gain[None]
         self.illumination_gain = (self.ideal_linear_rgb[18:21] / cc_wb_mean_value[18:21]).mean()
         cc_wb_ill_mean_value = self.illumination_gain * cc_wb_mean_value
-        
-        self.__ccm_masks = cc_wb_ill_mean_value < 1
-        cc_wb_ill_mean_value = cc_wb_ill_mean_value * self.__ccm_masks[..., None]
-        
 
         if self.__ccm_method == "minimize":
             if self.__colorspace.lower() == "srgb":
                 cc_wb_ill_mean_value = gamma(cc_wb_ill_mean_value)
             if self.__ccm_type == '3x4':
                 cc_wb_ill_mean_value = np.concatenate((cc_wb_ill_mean_value.copy(), np.ones((cc_wb_ill_mean_value.shape[0], 1))), axis=-1)
-                # print(cc_wb_ill_mean_value.shape)
             self.__ccm = self.ccm_calculate(cc_wb_ill_mean_value)
 
         if self.__ccm_method == 'polynominal':
@@ -186,13 +186,22 @@ class ImageColorCalibration:
             raise ValueError(img.shape)
         return img_ccm
 
-    def ccm_calculate(self, rgb_data):
+    def ccm_calculate(self, ccm_rgb_data):
         """[calculate the color correction matrix]
         Args:
             rgb_data ([N*3]): [the RGB data of color_checker]
         Returns:
             [array]: [CCM with shape: 3*3 or 3*4]
         """
+
+        mask_index = np.argwhere(self.__ccm_masks)
+        mask_index = np.squeeze(mask_index, -1)
+        assert mask_index.ndim == 1
+        rgb_data = ccm_rgb_data[mask_index, :].copy()
+        ideal_lab = self.ideal_lab[mask_index, :].copy()
+        ideal_linear_rgb = lab2rgb(ideal_lab)
+
+
         if self.__ccm_method.lower() == 'minimize':
             if self.__ccm_type == '3x3':
                 if self.__ccm_rowsum1:
@@ -200,15 +209,15 @@ class ImageColorCalibration:
                                             [x[2],1-x[2]-x[3],x[3]],
                                             [x[4],x[5],1-x[4]-x[5]]])
                     x0 = np.zeros((6))
-                    
+
                 else:
                     x2ccm=lambda x : np.array([[x[0], x[1],x[2]],
                                             [x[3], x[4], x[5]],
                                             [x[6],x[7],x[8]]])
                     # x0 = np.zeros((9))
-                    x0 = np.array([[self.ideal_linear_rgb[..., 0].mean() / rgb_data[..., 0].mean(), 0, 0],
-                                   [0, self.ideal_linear_rgb[..., 1].mean() / rgb_data[..., 1].mean(), 0],
-                                   [0, 0, self.ideal_linear_rgb[..., 2].mean() / rgb_data[..., 2].mean()]])
+                    x0 = np.array([[ideal_linear_rgb[..., 0].mean() / rgb_data[..., 0].mean(), 0, 0],
+                                   [0, ideal_linear_rgb[..., 1].mean() / rgb_data[..., 1].mean(), 0],
+                                   [0, 0, ideal_linear_rgb[..., 2].mean() / rgb_data[..., 2].mean()]])
 
             elif self.__ccm_type == '3x4':
                 if self.__ccm_rowsum1:
@@ -220,9 +229,9 @@ class ImageColorCalibration:
                     x2ccm=lambda x : np.array([[x[0], x[1], x[2], x[3]],
                                                [x[4], x[5], x[6], x[7]],
                                                [x[8], x[9], x[10], x[11]]])
-                    x0 = np.array([[self.ideal_linear_rgb[..., 0].mean() / rgb_data[..., 0].mean(), 0, 0, 0],
-                                   [0, self.ideal_linear_rgb[..., 1].mean() / rgb_data[..., 1].mean(), 0, 0],
-                                   [0, 0, self.ideal_linear_rgb[..., 2].mean() / rgb_data[..., 2].mean(), 0]])
+                    x0 = np.array([[ideal_linear_rgb[..., 0].mean() / rgb_data[..., 0].mean(), 0, 0, 0],
+                                   [0, ideal_linear_rgb[..., 1].mean() / rgb_data[..., 1].mean(), 0, 0],
+                                   [0, 0, ideal_linear_rgb[..., 2].mean() / rgb_data[..., 2].mean(), 0]])
 
         elif self.__ccm_method.lower() == 'polynominal':
             x2ccm=lambda x : np.array([[x[0], x[1], x[2], x[3], x[4], x[5], x[6], x[7], x[8]],
@@ -236,10 +245,10 @@ class ImageColorCalibration:
             f_lab = lambda x: rgb2lab(gamma_reverse(self.apply_ccm(rgb_data, x2ccm(x)), colorspace='sRGB'))
 
         if self.__ccm_metric == 'CIE1976':
-            f_error=lambda x : f_lab(x)- self.ideal_lab
+            f_error=lambda x : f_lab(x)- ideal_lab
             f_DeltaE=lambda x : (np.sqrt((f_error(x)**2).sum(axis=1)) * self.__ccm_weight).mean()
         elif self.__ccm_metric == 'CIE2000':
-            f_DeltaE=lambda x : ((delta_E_CIE2000(f_lab(x), self.ideal_lab) * self.__ccm_weight)**2).mean()
+            f_DeltaE=lambda x : ((delta_E_CIE2000(f_lab(x), ideal_lab) * self.__ccm_weight)**2).mean()
 
         func=lambda x : print('deltaE_00 = ',f_DeltaE(x))
 
@@ -260,16 +269,9 @@ class ImageColorCalibration:
                 raise ValueError('currently not supported constrain value in 3*4 CCM.')
 
         else:
-            # x0 = np.array([1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0])
-            # x0 = np.array([1, 0, 0, 0.5, 0, 1, 0, 0.5, 0, 0, 1, 0.5])
-            x0 = np.zeros(12)
-
             result=optimize.minimize(f_DeltaE, x0, callback=func, method='Powell')
 
         print('minimize average deltaE00: ', result.fun)
-        # print('--------------------')
-        # print('ccm:\n',x2ccm(result.x))
-        # print('--------------------')
         return x2ccm(result.x)
 
 
@@ -307,72 +309,23 @@ class ImageColorCalibration:
         if ccm_correction:
             if self.__ccm_type == '3x4':
                 image = np.concatenate((image.copy(), np.ones((image.shape[0], image.shape[1], 1))), axis=-1)
-                # print(image.shape)
 
             if image_color_space.lower() == self.__colorspace.lower():
-                # image = np.einsum('ic, hwc->hwi', self.__ccm, image)
                 image = self.apply_ccm(image, self.__ccm)
 
             elif image_color_space.lower() == "linear" and self.__colorspace.lower() == "srgb":
                 image = gamma(image, "sRGB")
-                # image = np.einsum('ic, hwc->hwi', self.__ccm, image)
                 image = self.apply_ccm(image, self.__ccm)
                 image = gamma_reverse(image, "sRGB")
 
             elif image_color_space.lower() == "srgb" and self.__colorspace.lower() == "linear":
                 image = gamma_reverse(image, "sRGB")
-                # image = np.einsum('ic, hwc->hwi', self.__ccm, image)
                 image = self.apply_ccm(image, self.__ccm)
                 image = gamma(image, "sRGB")
 
             image = np.clip(image, 0, 1)
 
         return image
-
-
-
-    # def evaluate_result(self, image, image_color_space):
-    #     # if self.sorted_centroid is None:
-    #     #     self.sorted_centroid, clusters, marker_image = detect_colorchecker(image)
-    #     # result_cc_mean = self.calculate_colorchecker_value(image, self.sorted_centroid, 50)
-
-    #     result_cc_mean = detect_colorchecker_value(image)
-
-    #     result_cc_mean = np.clip(result_cc_mean, 0, 1)
-    #     if image_color_space == "srgb":
-    #         result_cc_mean_lab = rgb2lab(gamma_reverse(result_cc_mean))
-    #     else:
-    #         result_cc_mean_lab = rgb2lab(result_cc_mean)
-    #     deltaC = delta_C_CIE2000(result_cc_mean_lab, self.ideal_lab)
-    #     deltaE_00 = delta_E_CIE2000(result_cc_mean_lab, self.ideal_lab)
-    #     deltaE_76 = colour.delta_E(result_cc_mean_lab, self.ideal_lab, method='CIE 1976')
-
-    #     # return deltaC, deltaE
-    #     return deltaC, deltaE_00, deltaE_76
-
-    # def draw_gt_in_image(self, image, image_color_space, deltaE, length=50):
-    #     if self.sorted_centroid is None:
-    #         self.sorted_centroid, _, _ = detect_colorchecker(image)
-    #     image_gt = image.copy()
-
-    #     self.sorted_centroid = np.int32(self.sorted_centroid)
-    #     for i in range(len(self.sorted_centroid)):
-    #         if image_color_space.lower() == "linear":
-    #             image_gt[self.sorted_centroid[i, 1] -
-    #                      length:self.sorted_centroid[i, 1] + length,
-    #                      self.sorted_centroid[i, 0] -
-    #                      length:self.sorted_centroid[i, 0] + length] = lab2rgb(
-    #                          self.ideal_lab)[i]
-    #         else:
-    #             image_gt[self.sorted_centroid[i, 1] -
-    #                      length:self.sorted_centroid[i, 1] + length,
-    #                      self.sorted_centroid[i, 0] -
-    #                      length:self.sorted_centroid[i, 0] + length] = gamma(
-    #                          lab2rgb(self.ideal_lab))[i]
-    #         cv2.putText(image_gt, str(round(deltaE[i], 1)),
-    #                     np.int32(self.sorted_centroid[i]),
-    #                     cv2.FONT_HERSHEY_SIMPLEX, 2, (255, 255, 0), 2)
-    #     return image_gt
 
 
 if __name__ == '__main__':
