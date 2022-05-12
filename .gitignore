@@ -141,18 +141,10 @@ cython_debug/
 .vscode/
 test.py
 img/
-# utils/smv_colour/
 utils/smv_colour_py
-data_tmp/
-Spatial/
-Model/
-ccm.csv
 verify.py
 verify_*.py
-data/experiment
 data/tmp
-data/shading
-mcc/
 img_*.png
-color_shading.py
-*_multiccm.py
+image/
+data/*.npy

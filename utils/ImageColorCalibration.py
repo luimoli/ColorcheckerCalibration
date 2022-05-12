@@ -1,19 +1,10 @@
-from matplotlib import axis
-import torch
+import os
 import numpy as np
-import colour
-import cv2.cv2 as cv2
 import scipy.optimize as optimize
-import matplotlib.pyplot as plt
-import sys
-sys.path.append('./utils')
 
 from utils import smv_colour
-from utils.deltaE.deltaC_2000_np import delta_C_CIE2000
 from utils.deltaE.deltaE_2000_np import delta_E_CIE2000
-from utils.mcc_detect_color_checker import detect_colorchecker_value, detect_colorchecker
 from utils.misc import gamma, gamma_reverse, rgb2lab, lab2rgb
-from utils.evaluate_result import evaluate
 
 class ImageColorCalibration:
     def __init__(self, src_for_ccm, colorchecker_gt_mode):
@@ -143,7 +134,7 @@ class ImageColorCalibration:
 
 
     def compute_cct_from_white_point(self, white_point):
-        xyz = smv_colour.RGB2XYZ(torch.from_numpy(np.float32(white_point)), "bt709")
+        xyz = smv_colour.RGB2XYZ(np.float32(white_point), "bt709")
         xyY = smv_colour.XYZ2xyY(xyz)
         cct = smv_colour.xy2CCT(xyY[0:2])
         return cct
@@ -269,7 +260,8 @@ class ImageColorCalibration:
                 raise ValueError('currently not supported constrain value in 3*4 CCM.')
 
         else:
-            result=optimize.minimize(f_DeltaE, x0, callback=func, method='Powell')
+            # result=optimize.minimize(f_DeltaE, x0, callback=func, method='Powell')
+            result=optimize.minimize(f_DeltaE, x0, method='Powell')
 
         print('minimize average deltaE00: ', result.fun)
         return x2ccm(result.x)
@@ -326,6 +318,18 @@ class ImageColorCalibration:
             image = np.clip(image, 0, 1)
 
         return image
+    
+    def save(self, ccm_save_path):
+        """save calibration result as a CCM dict for the later correction.
+        Args:
+            ccm_save_path (str): npy file path.
+        """
+        if os.path.exists(ccm_save_path):
+            cct_ccm_list = np.load(ccm_save_path, allow_pickle=True).item()
+            cct_ccm_list[self.cct] = self.__ccm
+            np.save(ccm_save_path, cct_ccm_list)
+        else:
+            np.save(ccm_save_path, {self.cct: self.__ccm})
 
 
 if __name__ == '__main__':

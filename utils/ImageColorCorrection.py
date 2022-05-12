@@ -1,11 +1,12 @@
 import sys
+import cv2
 sys.path.append("./utils")
-import torch
 import numpy as np
 from misc import gamma, gamma_reverse
 import matplotlib.pyplot as plt
 import smv_colour
 import mcc_detect_color_checker
+
 
 class ImageColorCorrection:
     def __init__(self, cct_ccm_dict, ccm_cs, method):
@@ -54,21 +55,26 @@ class ImageColorCorrection:
                     break
 
     def compute_cct_from_white_point(self, white_point):
-        xyY = smv_colour.XYZ2xyY(smv_colour.RGB2XYZ(torch.from_numpy(np.float32(white_point)), "bt709"))
+        xyY = smv_colour.XYZ2xyY(smv_colour.RGB2XYZ(np.float32(white_point), "bt709"))
         cct = smv_colour.xy2CCT(xyY[0:2])
         return float(cct)
 
-    def whitePaperWhiteBalance(self, wb_image):
+    def whitePaperWhiteBalance(self, wb_image, show_wb_area=False):
         height, width = wb_image.shape[0], wb_image.shape[1]
-        wp_mean = np.mean(wb_image[int(height*3/8):int(height*5/8), int(width*3/8):int(width*5/8)], axis=(0, 1))
+        wp_mean = np.mean(wb_image[int(height*2/8):int(height*4/8), int(width*3/8):int(width*5/8)], axis=(0, 1))
         wb_gain = np.max(wp_mean) / wp_mean
         white_point = 1 / wb_gain
+        if show_wb_area:
+            wb_image = cv2.rectangle(wb_image, (int(width*3/8), int(height*2/8)), (int(width*5/8), int(height*4/8)), (0, 0, 0), 2)
+            plt.figure()
+            plt.imshow(wb_image)
+            plt.show()
         cct = self.compute_cct_from_white_point(white_point)
         return wb_gain, cct, white_point
 
     def colorCheckerWhiteBalance(self, wb_image):
-        _, charts_rgb, marker_image = mcc_detect_color_checker.detect_colorchecker(wb_image)
-        white_block = charts_rgb[18, 0]
+        _, _, charts_rgb, marker_image = mcc_detect_color_checker.detect_colorchecker(wb_image)
+        white_block = charts_rgb[18]
         wb_gain = np.max(white_block) / white_block
         white_point = 1 / wb_gain
         cct = self.compute_cct_from_white_point(white_point)
@@ -96,6 +102,7 @@ class ImageColorCorrection:
         image_temp = image.copy()
         print(self.__rgb_gain)
         image_temp = image_temp * self.__rgb_gain[None, None]
+
         image_temp = np.clip(image_temp, 0, 1)
         if image_color_space.lower() == "srgb" and self.__ccm_cs.lower() == "linear":
             image_temp = gamma(image_temp)
@@ -104,10 +111,11 @@ class ImageColorCorrection:
 
         # apply ccm
         print(self.__ccm.shape)
+        self.__ccm = self.__ccm.T
         # self.__ccm = self.__ccm.numpy()
         if self.__ccm.shape[0] == 4:
             # image_temp = np.einsum('ic, hwc->hwi', self.__ccm[0:3].T, image_temp) + self.__ccm[3][None, None]
-            image_temp = np.einsum('ic, hwc->hwi', self.__ccm[0:3].T, image_temp) + self.__ccm[3]
+            image_temp = np.einsum('ic, hwc->hwi', self.__ccm[0:3].T, image_temp) + self.__ccm[3][None, None]
         else:
             image_temp = np.einsum('ic, hwc->hwi', self.__ccm.T, image_temp)
         image_temp = np.clip(image_temp, 0, 1)
