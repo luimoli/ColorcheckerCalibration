@@ -9,25 +9,22 @@ import mcc_detect_color_checker
 
 
 class ImageColorCorrection:
-    def __init__(self, cct_ccm_dict, ccm_cs, method):
+    def __init__(self, cct_ccm_dict, ccm_cs):
         """
         Args:
             cct_ccm_dict:
             method: cc:colorchecker  wp:white paper  grey world:grey world
             white_balance_method:
         """
-        # self.__white_balance_method = white_balance_method
-        # self.__config = config
         self.__rgb_gain = np.array([1, 1, 1])
         self.__cct = None
         self.__ccm = None
         self.__ccm_cs = ccm_cs
-        # self.__image_cs = 'linear'
-        self.__method = method
+        self.__method = None
         self.__cct_ccm_dict = cct_ccm_dict
 
     def setMethod(self, method):
-        assert method == 'wp' or method == 'cc', " "
+        # assert method == 'wp' or method == 'cc', " "
         self.__method = method
 
     def setWhitePaperGain(self, gain):
@@ -36,7 +33,7 @@ class ImageColorCorrection:
 
     def ccm_interpolation(self, cct):
         cct_list = sorted(self.__cct_ccm_dict.keys())
-        print(cct_list, cct)
+        print(cct.shape)
         if cct <= cct_list[0]:
             self.__ccm = self.__cct_ccm_dict[cct_list[0]]
         elif cct >= cct_list[-1]:
@@ -56,8 +53,8 @@ class ImageColorCorrection:
 
     def compute_cct_from_white_point(self, white_point):
         xyY = smv_colour.XYZ2xyY(smv_colour.RGB2XYZ(np.float32(white_point), "bt709"))
-        cct = smv_colour.xy2CCT(xyY[0:2])
-        return float(cct)
+        cct = smv_colour.xy2CCT(xyY[..., 0:2])
+        return np.float32(cct)
 
     def whitePaperWhiteBalance(self, wb_image, show_wb_area=False):
         height, width = wb_image.shape[0], wb_image.shape[1]
@@ -78,6 +75,7 @@ class ImageColorCorrection:
         wb_gain = np.max(white_block) / white_block
         white_point = 1 / wb_gain
         cct = self.compute_cct_from_white_point(white_point)
+
         return wb_gain, cct, white_point
 
     def multipleLightWhitePaperWhiteBalance(self, wb_image):
@@ -93,10 +91,9 @@ class ImageColorCorrection:
             rgb_gain, cct, white_point = self.colorCheckerWhiteBalance(wb_image)
         elif self.__method.lower() == "multiple_light":
             rgb_gain, cct, white_point = self.multipleLightWhitePaperWhiteBalance(wb_image)
-        else:
-            assert 0, ""
         self.__rgb_gain = rgb_gain
         self.__cct = cct
+        print(self.__rgb_gain, self.__cct )
 
     def apply_wb_and_ccm(self, image, image_color_space):
         image_temp = image.copy()

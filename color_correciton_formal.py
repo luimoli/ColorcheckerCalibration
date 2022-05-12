@@ -7,11 +7,12 @@ from utils.evaluate_result import evaluate
 if __name__ == '__main__':
     # image = cv2.imread(r"data\image\Camerasnap6.jpg")[..., ::-1] / 255.
     # image_wb = cv2.imread(r"data\image\Camerasnap9.jpg")[..., ::-1] / 255.
-    image = cv2.imread(r"image\image\Camerasnap6.jpg")[..., ::-1] / 255.
-    image_wb = cv2.imread(r"image\Xcamera\Camerasnap2.png")[..., ::-1] / 255.
+    image = cv2.imread(r"./data/mindvision/mv_2300.PNG")[..., ::-1] / 255.
+    image_wb = cv2.imread(r"./data/mindvision/mv_2300.PNG")[..., ::-1] / 255.
 
-    cct_ccm_dict = np.load("./data/Xcamera_calib_xrite_3x4.npy", allow_pickle=True).item()
-    image_color_correction = ImageColorCorrection(cct_ccm_dict, "linear", "cc")
+    cct_ccm_dict = np.load("./data/calibration_3nh.npy", allow_pickle=True).item()
+    image_color_correction = ImageColorCorrection(cct_ccm_dict, "linear")
+    image_color_correction.setMethod("multiple_light")
     image_color_correction.doWhiteBalance(wb_image=image_wb)
     corrected_image = image_color_correction.correctImage(image, "linear")
 
