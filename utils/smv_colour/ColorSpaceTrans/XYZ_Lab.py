@@ -1,4 +1,4 @@
-import torch
+import numpy as np
 
 from .utils.func import split, stack
 from .utils.constants import const
@@ -15,7 +15,7 @@ def xyz2lab(XYZ, illuminant_mode='d65'):
     XYZ_r = xyy2xyz(xy2xyy(illuminant))
 
     XYZ_f = XYZ / XYZ_r
-    XYZ_f = torch.where(XYZ_f > const.CIE_E, torch.pow(XYZ_f, 1 / 3), (const.CIE_K * XYZ_f + 16) / 116)
+    XYZ_f = np.where(XYZ_f > const.CIE_E, np.power(XYZ_f, 1 / 3), (const.CIE_K * XYZ_f + 16) / 116)
     X_f, Y_f, Z_f = split(XYZ_f)
 
     L = 116 * Y_f - 16
@@ -44,29 +44,26 @@ def lab2xyz(Lab, illuminant_mode='d65'):
     f_x = a / 500 + f_y
     f_z = f_y - b / 200
 
-    x_r = torch.where(f_x ** 3 > const.CIE_E, f_x ** 3, (116 * f_x - 16) / const.CIE_K)
-    y_r = torch.where(L > const.CIE_K * const.CIE_E, ((L + 16) / 116) ** 3, L / const.CIE_K)
-    z_r = torch.where(f_z ** 3 > const.CIE_E, f_z ** 3, (116 * f_z - 16) / const.CIE_K)
+    x_r = np.where(f_x ** 3 > const.CIE_E, f_x ** 3, (116 * f_x - 16) / const.CIE_K)
+    y_r = np.where(L > const.CIE_K * const.CIE_E, ((L + 16) / 116) ** 3, L / const.CIE_K)
+    z_r = np.where(f_z ** 3 > const.CIE_E, f_z ** 3, (116 * f_z - 16) / const.CIE_K)
 
     XYZ = stack((x_r, y_r, z_r)) * XYZ_r
 
     return XYZ
 
 if __name__ == '__main__':
-    randxyz = torch.rand((1080,1920,3), dtype=torch.float32)
+    randxyz = np.float32(np.random.random((1080,1920,3)))
 
     # # verify XYZ_to_Lab
     # v0 = colour.XYZ_to_Lab(randxyz)
-    # v0 = torch.from_numpy(v0)
     # v1 = xyz2lab(randxyz)
     # diff = v0 - v1
     # print(diff.max(),diff.mean())
 
     # # # verify Lab_to_XYZ
     # randlab = colour.XYZ_to_Lab(randxyz)
-    # randlab = torch.from_numpy(randlab)
     # cs = colour.Lab_to_XYZ(randlab)
-    # cs = torch.from_numpy(cs)
     # our = lab2xyz(randlab)
     # diff = cs - our
     # print(diff.max(),diff.mean())

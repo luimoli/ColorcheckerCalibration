@@ -44,8 +44,18 @@ def xyY2XYZ(img_xyY):
 
 
 def XYZ2Lab(img_xyz, illuminant_mode='d65'):
+    """
+    Args:
+        img_xyz (arr): CIE XYZ colorspace array.
+        illuminant_mode (str, optional): ['d65', 'd50']. Defaults to 'd65'.
+    """
     return XYZ_Lab.xyz2lab(img_xyz, illuminant_mode)
 def Lab2XYZ(img_lab, illuminant_mode='d65'):
+    """
+    Args:
+        img_lab (arr): CIE LAB colorspace array.
+        illuminant_mode (str, optional): ['d65', 'd50']. Defaults to 'd65'.
+    """
     return XYZ_Lab.lab2xyz(img_lab, illuminant_mode)
 
 

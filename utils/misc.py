@@ -1,6 +1,4 @@
 import numpy as np
-import torch
-
 from utils import smv_colour
 
 def gamma(x, colorspace='sRGB'):
@@ -29,13 +27,13 @@ def deltaE76(Lab1, Lab2):
 
 def rgb2lab(data):
     data = np.clip(data, 0, 1) #TODO
-    # assert data.max() <= 1, "image range should be in [0, 1]"
     data = np.float32(data)
-    resultxyz = smv_colour.RGB2XYZ(torch.from_numpy(data), 'bt709')
-    resultlab = smv_colour.XYZ2Lab(resultxyz).numpy()
+    resultxyz = smv_colour.RGB2XYZ(data, 'bt709')
+    resultlab = smv_colour.XYZ2Lab(resultxyz)
     return resultlab
 
 def lab2rgb(data):
-    resultxyz = smv_colour.Lab2XYZ(torch.from_numpy(np.float32(data)))
-    resultrgb = smv_colour.XYZ2RGB(resultxyz, 'bt709').numpy()
+    data = np.float32(data)
+    resultxyz = smv_colour.Lab2XYZ(data)
+    resultrgb = smv_colour.XYZ2RGB(resultxyz, 'bt709')
     return resultrgb

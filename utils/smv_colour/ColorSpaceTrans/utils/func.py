@@ -1,4 +1,4 @@
-import torch
+import numpy as np
 
 def stack(arr):
     """[Stacks arrays in sequence along the last axis (tail).]
@@ -7,7 +7,7 @@ def stack(arr):
     Returns:
         [type]: [description]
     """
-    return torch.cat([x[..., None] for x in arr], axis=-1)
+    return np.concatenate([x[..., None] for x in arr], axis=-1)
 
 
 def split(arr):
@@ -20,4 +20,4 @@ def split(arr):
     return [arr[..., x] for x in range(arr.shape[-1])]
 
 def dot_vector(matrix, vector):
-    return torch.einsum('ij,...j->...i', matrix, vector)
+    return np.einsum('ij,...j->...i', matrix, vector)

@@ -1,5 +1,4 @@
-import torch
-import colour
+import numpy as np
 
 from .utils.func import split, stack
 
@@ -15,9 +14,9 @@ def luv2lch(Luv):
 
     L, u, v = split(Luv)
 
-    H = 180 * torch.atan2(v, u) / (torch.acos(torch.zeros(1)).item() * 2)
+    H = 180 * np.arctan2(v, u) / (np.arccos(np.zeros(1)).item() * 2)
     H[H < 0] += 360
-    C = torch.sqrt(u ** 2 + v ** 2)
+    C = np.sqrt(u ** 2 + v ** 2)
 
     LCHuv = stack((L, C, H))
 
@@ -30,8 +29,8 @@ def lch2luv(LCHuv):
     """
     L, C, H = split(LCHuv)
 
-    u = C * torch.cos(torch.deg2rad(H))
-    v = C * torch.sin(torch.deg2rad(H))
+    u = C * np.cos(np.deg2rad(H))
+    v = C * np.sin(np.deg2rad(H))
 
     Luv = stack((L, u, v))
 
@@ -39,22 +38,18 @@ def lch2luv(LCHuv):
 
 
 if __name__ == '__main__':
-    randxyz = torch.rand((1080,1920,3), dtype=torch.float32)
-    randluv = colour.XYZ_to_Luv(randxyz)
-    randluv = torch.from_numpy(randluv)
+    randxyz = np.rand((1080,1920,3), dtype=np.float32)
+    # randluv = colour.XYZ_to_Luv(randxyz)
 
     # # verify luv2lch----
     # cs = colour.Luv_to_LCHuv(randluv)
-    # cs = torch.from_numpy(cs)
     # our = luv2lch(randluv)
     # diff = abs(cs - our)
     # print(diff.max(), diff.mean())
 
     # # # verify lch2luv----
     # randlch = colour.Luv_to_LCHuv(randluv)
-    # randlch = torch.from_numpy(randlch)
     # cs = colour.LCHuv_to_Luv(randlch)
-    # cs = torch.from_numpy(cs)
     # our = lch2luv(randlch)
     # diff = abs(cs - our)
     # print(diff.max(), diff.mean())

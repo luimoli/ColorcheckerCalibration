@@ -1,4 +1,4 @@
-import torch
+import numpy as np
 
 def hlg_inverse_ootf(rgb_screen, alpha=1000, beta=0):
     Yd = 0.2627 * (rgb_screen[:, :, 0:1]) + 0.6780 * (rgb_screen[:, :, 1:2]) + 0.0593 * (rgb_screen[:, :, 2:])
@@ -11,7 +11,7 @@ def hlg_oetf(rgb2100):
     a = 0.17883277
     b = 0.28466892
     c = 0.55991073
-    rgb_oetf = torch.where(rgb2100 <= 1 / 12, ((3 * rgb2100) ** 0.5), (a * torch.log(12 * rgb2100 - b) + c))
+    rgb_oetf = np.where(rgb2100 <= 1 / 12, ((3 * rgb2100) ** 0.5), (a * np.log(12 * rgb2100 - b) + c))
     return rgb_oetf
 
 
@@ -31,16 +31,16 @@ def ootf_HLG_BT2100_1(x, L_B, L_W, gamma=1.2):
     beta = L_B
     Y_S = 0.2627 * R_S + 0.6780 * G_S + 0.0593 * B_S
 
-    R_D = alpha * R_S * torch.abs(Y_S) ** (gamma - 1) + beta
-    G_D = alpha * G_S * torch.abs(Y_S) ** (gamma - 1) + beta
-    B_D = alpha * B_S * torch.abs(Y_S) ** (gamma - 1) + beta
+    R_D = alpha * R_S * np.abs(Y_S) ** (gamma - 1) + beta
+    G_D = alpha * G_S * np.abs(Y_S) ** (gamma - 1) + beta
+    B_D = alpha * B_S * np.abs(Y_S) ** (gamma - 1) + beta
 
-    RGB_D = torch.stack([R_D, G_D, B_D], dim=2)
+    RGB_D = np.stack([R_D, G_D, B_D], dim=2)
 
     return RGB_D
 
 
 def oetf_inverse_ARIBSTDB67(E_p):
     a, b, c = 0.17883277, 0.28466892, 0.55991073
-    E = torch.where(E_p <= 1, (E_p / 0.5) ** 2, torch.exp((E_p - c) / a) + b)
+    E = np.where(E_p <= 1, (E_p / 0.5) ** 2, np.exp((E_p - c) / a) + b)
     return E

@@ -1,6 +1,4 @@
 import numpy as np
-import torch
-import colour
 
 from .utils.func import split, stack
 from .utils.constants import const
@@ -20,7 +18,7 @@ def xyz2luv(XYZ, illuminant=const.ILLUMINANTS['D65']):
     X_r, Y_r, Z_r = split(xyy2xyz(xy2xyy(illuminant)))
     
     y_r = Y / Y_r
-    L = torch.where(y_r > const.CIE_E, 116 * y_r ** (1 / 3) - 16, const.CIE_K * y_r)
+    L = np.where(y_r > const.CIE_E, 116 * y_r ** (1 / 3) - 16, const.CIE_K * y_r)
 
     X_Y_Z = X + 15 * Y + 3 * Z
     X_r_Y_r_Z_r = X_r + 15 * Y_r + 3 * Z_r
@@ -44,7 +42,7 @@ def luv2xyz(Luv, illuminant=const.ILLUMINANTS['D65']):
 
     X_r, Y_r, Z_r = split(xyy2xyz(xy2xyy(illuminant)))
 
-    Y = torch.where(L > const.CIE_E * const.CIE_K, ((L + 16) / 116) ** 3, L / const.CIE_K)
+    Y = np.where(L > const.CIE_E * const.CIE_K, ((L + 16) / 116) ** 3, L / const.CIE_K)
 
     a = 1 / 3 * ((52 * L / (u + 13 * L * (4 * X_r / (X_r + 15 * Y_r + 3 * Z_r)))) - 1)
     b = -5 * Y
@@ -72,19 +70,19 @@ def uv2xy(uv):
 
 
 if __name__ =='__main__':
-    randxyz = torch.rand((1080,1920,3), dtype=torch.float32)
+    randxyz = np.rand((1080,1920,3), dtype=np.float32)
 
     # our = xyz2luv(randxyz)
     # cs = colour.XYZ_to_Luv(randxyz)
-    # cs = torch.from_numpy(cs)
+    # cs = np.from_numpy(cs)
     # diff = abs(cs - our)
     # print(diff.max(), diff.mean())
 
     # randxyz = randxyz.numpy()
     # randluv = colour.XYZ_to_Luv(randxyz)
-    # randluv = torch.from_numpy(randluv)
+    # randluv = np.from_numpy(randluv)
     # cs = colour.Luv_to_XYZ(randluv)
-    # cs = torch.from_numpy(cs)
+    # cs = np.from_numpy(cs)
     # our = luv2xyz(randluv)
     # diff = abs(cs - our)
     # print(diff.max(), diff.mean())

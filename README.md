@@ -27,12 +27,11 @@ There are example data in `data` directory.
 
 ### Prerequisites
 - Python 3.8.11
-- Pytorch 1.9
 - opencv-python 4.5.3.56
 - numpy 1.20.1
 
 ### Usecase
 ```
-python usage.py
+
 ```
 

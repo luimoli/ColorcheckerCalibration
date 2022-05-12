@@ -1,4 +1,3 @@
-import torch
 import numpy as np
 import cv2
 
@@ -23,7 +22,7 @@ def evaluate(image, ideal_lab, image_color_space, draw_mode='deltaC'):
     """
     result_cc_mean = mcc_detect_color_checker.detect_colorchecker_value(image)
     result_cc_mean = np.clip(result_cc_mean, 0, 1)
-    
+
     if image_color_space == "srgb":
         result_cc_mean_lab = rgb2lab(gamma_reverse(result_cc_mean))
     elif image_color_space == "linear":
