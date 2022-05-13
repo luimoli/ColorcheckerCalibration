@@ -57,8 +57,8 @@ def init_camera(exposure_method, exposure_time):
 
 
 def get_image(hCamera, image_format):
-    while (cv2.waitKey(1) & 0xFF) != ord('q'):
         # 从相机取一帧图片
+    try:
         cap = mvsdk.CameraGetCapability(hCamera)
         FrameBufferSize = cap.sResolutionRange.iWidthMax * cap.sResolutionRange.iHeightMax * 3
         pFrameBuffer = mvsdk.CameraAlignMalloc(FrameBufferSize, 16)
@@ -91,6 +91,10 @@ def get_image(hCamera, image_format):
         else:
             assert 0, "image_format should be in [png, jpg, jpeg, tiff, bmp, raw]"
         return frame
+    except mvsdk.CameraException as e:
+        print("===============================================")
+        print("CameraGetImageBuffer failed({}): {}".format(e.error_code, e.message))
+        return np.zeros((640, 480))
 
 
 def inverse_tone_mapping(raw_image):
@@ -109,7 +113,6 @@ def raw_image_isp(raw_image):
 
 
 def get_rgb_image(hCamera, image_format, image_num=1):
-    print("==================", image_format)
     raw_image = get_image(hCamera, image_format)
     if image_num > 1:
         raw_image = np.int32(raw_image)
@@ -121,10 +124,3 @@ def get_rgb_image(hCamera, image_format, image_num=1):
         return raw_image_isp(raw_image)[..., ::-1]
     else:
         return np.float32(raw_image[..., ::-1] / 255.)
-
-
-
-
-
-
-

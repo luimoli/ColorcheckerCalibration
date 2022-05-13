@@ -7,17 +7,20 @@ from PyQt5 import QtCore
 
 
 if __name__ == '__main__':
-    QtCore.QCoreApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling)
+    try:
+        QtCore.QCoreApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling)
 
-    app = QApplication(sys.argv)
-    mainWnd = QMainWindow()
-    ui = Ui_MainWindow()
+        app = QApplication(sys.argv)
+        mainWnd = QMainWindow()
+        ui = Ui_MainWindow()
 
-    # 可以理解成将创建的 ui 绑定到新建的 mainWnd 上
-    ui.setupUi(mainWnd)
-    exposure_time = 50
-    display = CalibrationFunc(ui, mainWnd, "calibration_3nh_3x3.npy", exposure_time, "raw", 0)
+        # 可以理解成将创建的 ui 绑定到新建的 mainWnd 上
+        ui.setupUi(mainWnd)
+        exposure_time = 50
+        display = CalibrationFunc(ui, mainWnd, "./calib_result/xrite_3x4_temp.npy", exposure_time, "raw", 0)
 
-    mainWnd.show()
+        mainWnd.show()
 
-    sys.exit(app.exec_())
+        sys.exit(app.exec_())
+    except Exception as e:
+        print(e)

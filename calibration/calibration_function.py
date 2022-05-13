@@ -118,6 +118,7 @@ class CalibrationFunc:
 
     def calibration_button_function(self):
         image = mv_image_func.get_rgb_image(self.hCamera, self.image_format, self.calib_image_num)
+        print("get_rgb_image finished~~~~")
         # image = np.load(r"E:\code\PyQt_practice\raw_image1.npy")
         _, _, cc_mean_value, _ = mcc_detect_color_checker.detect_colorchecker(image)
         model = ImageColorCalibration(src_for_ccm=cc_mean_value, colorchecker_gt_mode=1)
@@ -127,7 +128,7 @@ class CalibrationFunc:
         model.setCCM_RowSum1(False)
         model.run()
         ccm = model.getCCM()
-        model.save("./calib_result/xrite_3x4.npy")
+        model.save(self.result_path)
 
         calibratedImage = model.infer(image, image_color_space='linear', illumination_gain=False, ccm_correction=True)
         deltaC, deltaE00, img_with_gt = evaluate(calibratedImage, model.ideal_lab, 'linear', 'deltaC')

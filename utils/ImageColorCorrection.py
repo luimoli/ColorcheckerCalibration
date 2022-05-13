@@ -97,9 +97,10 @@ class ImageColorCorrection:
 
     def apply_wb_and_ccm(self, image, image_color_space):
         image_temp = image.copy()
-        print(self.rgb_gain)
-        image_temp = image_temp * self.rgb_gain[None, None]
-
+        if len(self.rgb_gain.shape) == 1:
+            image_temp = image_temp * self.rgb_gain[None, None]
+        else:
+            image_temp = image_temp * self.rgb_gain
         image_temp = np.clip(image_temp, 0, 1)
         if image_color_space.lower() == "srgb" and self.ccm_cs.lower() == "linear":
             image_temp = gamma(image_temp)
@@ -107,11 +108,8 @@ class ImageColorCorrection:
             image_temp = gamma_reverse(image_temp)
 
         # apply ccm
-        print(self.ccm.shape)
         self.ccm = self.ccm.T
-        # self.__ccm = self.__ccm.numpy()
         if self.ccm.shape[0] == 4:
-            # image_temp = np.einsum('ic, hwc->hwi', self.__ccm[0:3].T, image_temp) + self.__ccm[3][None, None]
             image_temp = np.einsum('ic, hwc->hwi', self.ccm[0:3].T, image_temp) + self.ccm[3][None, None]
         else:
             image_temp = np.einsum('ic, hwc->hwi', self.ccm.T, image_temp)
@@ -124,6 +122,21 @@ class ImageColorCorrection:
         return image_temp
 
     def correctImage(self, image, image_color_space):
-        self.ccm_interpolation(self.cct)
+        if isinstance(self.cct, np.ndarray):
+            h, w = self.cct.shape
+            self.ccm_interpolation(self.cct[int(h*3/8):int(h*5/8), int(w*3/8):int(w*5/8)].mean())
+        else:
+            self.ccm_interpolation(self.cct)
         corrected_image = self.apply_wb_and_ccm(image, image_color_space)
         return corrected_image
+
+    def multiLightCorrectImage(self, image, image_color_space):
+        cct_list = sorted(self.cct_ccm_dict.keys())
+        self.ccm = self.cct_ccm_dict[cct_list[0]]
+        corrected_image1 = self.apply_wb_and_ccm(image, image_color_space)
+        self.ccm = self.cct_ccm_dict[cct_list[-1]]
+        corrected_image2 = self.apply_wb_and_ccm(image, image_color_space)
+        alpha = (1 / self.cct - 1 / cct_list[-1]) / (1 / cct_list[0] - 1 / cct_list[-1])
+        alpha = alpha[..., None]
+        image_calib = alpha * corrected_image1 + (1 - alpha) * corrected_image2
+        return image_calib
