@@ -159,6 +159,7 @@ class CorrectionFunc:
         image = mv_image_func.get_rgb_image(self.hCamera, self.image_format)
         self.correction_model.setMethod("wp")
         self.correction_model.doWhiteBalance(image)
+        # cct = self.correction_model.cct
         return
 
     def correction_button_function(self):

@@ -16,39 +16,39 @@ class ImageColorCorrection:
             method: cc:colorchecker  wp:white paper  grey world:grey world
             white_balance_method:
         """
-        self.__rgb_gain = np.array([1, 1, 1])
-        self.__cct = None
-        self.__ccm = None
-        self.__ccm_cs = ccm_cs
-        self.__method = None
-        self.__cct_ccm_dict = cct_ccm_dict
+        self.rgb_gain = np.array([1, 1, 1])
+        self.cct = None
+        self.ccm = None
+        self.ccm_cs = ccm_cs
+        self.method = None
+        self.cct_ccm_dict = cct_ccm_dict
 
     def setMethod(self, method):
         # assert method == 'wp' or method == 'cc', " "
-        self.__method = method
+        self.method = method
 
     def setWhitePaperGain(self, gain):
-        assert self.__method == "wp", "  "
-        self.__rgb_gain = self.__rgb_gain * gain
+        assert self.method == "wp", "  "
+        self.rgb_gain = self.rgb_gain * gain
 
     def ccm_interpolation(self, cct):
-        cct_list = sorted(self.__cct_ccm_dict.keys())
+        cct_list = sorted(self.cct_ccm_dict.keys())
         print(cct.shape)
         if cct <= cct_list[0]:
-            self.__ccm = self.__cct_ccm_dict[cct_list[0]]
+            self.ccm = self.cct_ccm_dict[cct_list[0]]
         elif cct >= cct_list[-1]:
-            self.__ccm = self.__cct_ccm_dict[cct_list[-1]]
+            self.ccm = self.cct_ccm_dict[cct_list[-1]]
         else:
             for i in range(1, len(cct_list)):
                 if float(cct) <= cct_list[i]:
                     cct_left = cct_list[i-1]
                     cct_right = cct_list[i]
-                    ccm_left = self.__cct_ccm_dict[cct_list[i - 1]]
-                    ccm_right = self.__cct_ccm_dict[cct_list[i]]
+                    ccm_left = self.cct_ccm_dict[cct_list[i - 1]]
+                    ccm_right = self.cct_ccm_dict[cct_list[i]]
                     alpha = (1/cct - 1/cct_right) / (1/cct_left - 1/cct_right)
                     print("alpha:", alpha)
-                    self.__ccm = alpha * ccm_left + (1-alpha) * ccm_right
-                    print(self.__ccm)
+                    self.ccm = alpha * ccm_left + (1-alpha) * ccm_right
+                    print(self.ccm)
                     break
 
     def compute_cct_from_white_point(self, white_point):
@@ -85,45 +85,45 @@ class ImageColorCorrection:
         return wb_gain, cct, white_point
 
     def doWhiteBalance(self, wb_image):
-        if self.__method.lower() == "wp":
+        if self.method.lower() == "wp":
             rgb_gain, cct, white_point = self.whitePaperWhiteBalance(wb_image)
-        elif self.__method.lower() == "cc":
+        elif self.method.lower() == "cc":
             rgb_gain, cct, white_point = self.colorCheckerWhiteBalance(wb_image)
-        elif self.__method.lower() == "multiple_light":
+        elif self.method.lower() == "multiple_light":
             rgb_gain, cct, white_point = self.multipleLightWhitePaperWhiteBalance(wb_image)
-        self.__rgb_gain = rgb_gain
-        self.__cct = cct
-        print(self.__rgb_gain, self.__cct )
+        self.rgb_gain = rgb_gain
+        self.cct = cct
+        print(self.rgb_gain, self.cct )
 
     def apply_wb_and_ccm(self, image, image_color_space):
         image_temp = image.copy()
-        print(self.__rgb_gain)
-        image_temp = image_temp * self.__rgb_gain[None, None]
+        print(self.rgb_gain)
+        image_temp = image_temp * self.rgb_gain[None, None]
 
         image_temp = np.clip(image_temp, 0, 1)
-        if image_color_space.lower() == "srgb" and self.__ccm_cs.lower() == "linear":
+        if image_color_space.lower() == "srgb" and self.ccm_cs.lower() == "linear":
             image_temp = gamma(image_temp)
-        elif image_color_space.lower() == "linear" and self.__ccm_cs.lower() == "srgb":
+        elif image_color_space.lower() == "linear" and self.ccm_cs.lower() == "srgb":
             image_temp = gamma_reverse(image_temp)
 
         # apply ccm
-        print(self.__ccm.shape)
-        self.__ccm = self.__ccm.T
+        print(self.ccm.shape)
+        self.ccm = self.ccm.T
         # self.__ccm = self.__ccm.numpy()
-        if self.__ccm.shape[0] == 4:
+        if self.ccm.shape[0] == 4:
             # image_temp = np.einsum('ic, hwc->hwi', self.__ccm[0:3].T, image_temp) + self.__ccm[3][None, None]
-            image_temp = np.einsum('ic, hwc->hwi', self.__ccm[0:3].T, image_temp) + self.__ccm[3][None, None]
+            image_temp = np.einsum('ic, hwc->hwi', self.ccm[0:3].T, image_temp) + self.ccm[3][None, None]
         else:
-            image_temp = np.einsum('ic, hwc->hwi', self.__ccm.T, image_temp)
+            image_temp = np.einsum('ic, hwc->hwi', self.ccm.T, image_temp)
         image_temp = np.clip(image_temp, 0, 1)
 
-        if image_color_space.lower() == "srgb" and self.__ccm_cs.lower() == "linear":
+        if image_color_space.lower() == "srgb" and self.ccm_cs.lower() == "linear":
             image_temp = gamma_reverse(image_temp)
-        elif image_color_space.lower() == "linear" and self.__ccm_cs.lower() == "srgb":
+        elif image_color_space.lower() == "linear" and self.ccm_cs.lower() == "srgb":
             image_temp = gamma(image_temp)
         return image_temp
 
     def correctImage(self, image, image_color_space):
-        self.ccm_interpolation(self.__cct)
+        self.ccm_interpolation(self.cct)
         corrected_image = self.apply_wb_and_ccm(image, image_color_space)
         return corrected_image
