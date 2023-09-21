@@ -5,7 +5,7 @@ sys.path.append(os.path.abspath('../'))
 
 from utils.deltaE.deltaC_2000_np import delta_C_CIE2000
 from utils.deltaE.deltaE_2000_np import delta_E_CIE2000
-from utils.misc import gamma, gamma_reverse, rgb2lab, lab2rgb
+from utils.misc import gamma, gamma_reverse, rgb2lab, lab2rgb, deltaE76, deltaC76
 from utils import mcc_detect_color_checker
 
 
@@ -32,7 +32,9 @@ def evaluate(image, ideal_lab, image_color_space, draw_mode='deltaC'):
         raise ValueError(image_color_space)
     deltaC = delta_C_CIE2000(result_cc_mean_lab, ideal_lab)
     deltaE_00 = delta_E_CIE2000(result_cc_mean_lab, ideal_lab)
-    # deltaE_76 = colour.delta_E(result_cc_mean_lab, ideal_lab, method='CIE 1976')
+    deltaE_76 = deltaE76(result_cc_mean_lab, ideal_lab)
+    deltaC_76 = deltaC76(result_cc_mean_lab, ideal_lab)
+
     if draw_mode == 'deltaC':
         delta_draw = deltaC.copy()
     elif draw_mode == 'deltaE':
@@ -43,6 +45,8 @@ def evaluate(image, ideal_lab, image_color_space, draw_mode='deltaC'):
     image_with_gt = draw_gt_in_image(image, image_color_space, ideal_lab, delta_draw, sorted_centroid, length)
 
     return deltaC, deltaE_00, image_with_gt
+    # return deltaC, deltaE_00, image_with_gt, deltaE_76, deltaC_76
+
 
 
 def draw_gt_in_image(image, image_color_space, ideal_lab, deltaE, sorted_centroid, length):
@@ -65,9 +69,11 @@ def draw_gt_in_image(image, image_color_space, ideal_lab, deltaE, sorted_centroi
     return image_gt
 
 if __name__ == '__main__':
-    image_ = cv2.imread(r"../data/tmp/gammatest.png")[..., ::-1] / 255.
-    ideal_lab = np.float32(np.loadtxt(r'../data/real_lab_d50_3nh.csv', delimiter=','))
-    deltaC, deltaE00, image_with_gt = evaluate(image_, ideal_lab, image_color_space='srgb', draw_mode='deltaC')
+    image_ = cv2.imread(r"../data/tmp/2022-06-08_16-06-38_857.jpg")[..., ::-1] / 255.
+    ideal_lab = np.float32(np.loadtxt(r'../data/real_lab_xrite.csv', delimiter=','))
+    deltaC, deltaE00, image_with_gt = evaluate(image_, ideal_lab, image_color_space='linear', draw_mode='deltaC')
     image_with_gt = np.clip(image_with_gt, 0, 1)
-    cv2.imwrite(r'../data/tmp/gammatest_gt.png', image_with_gt[...,::-1]*255.)
+    cv2.imwrite(r'../data/tmp/2022-06-08_16-06-38_857_gt.png', image_with_gt[...,::-1]**(1/2.2)*255.)
+    cv2.imwrite(r'../data/tmp/2022-06-08_16-06-38_857_gamma.png', image_[...,::-1]**(1/2.2)*255.)
+
     print('deltaC, deltaE00:  ', deltaC.mean(), deltaE00.mean())

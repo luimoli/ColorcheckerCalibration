@@ -36,13 +36,15 @@ def lch2lab(LCH):
     return Lab
 
 if __name__ == '__main__':
+    import colour
     randxyz = np.float32(np.random.random((1080,1920,3)))
-    # randlab = colour.XYZ_to_Lab(randxyz)
+    randlab = colour.XYZ_to_Lab(randxyz)
 
-
+    
     # # verify Lab_to_LCH----
     # cs = colour.Lab_to_LCHab(randlab)
     # our = lab2lch(randlab)
+    # print(cs.max(),cs.mean())
     # diff = cs - our
     # print(diff.max(), diff.mean())
 

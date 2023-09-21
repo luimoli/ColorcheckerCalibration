@@ -71,6 +71,9 @@ class ImageColorCorrection:
 
     def colorCheckerWhiteBalance(self, wb_image):
         _, _, charts_rgb, marker_image = mcc_detect_color_checker.detect_colorchecker(wb_image)
+        # plt.figure()
+        # plt.imshow(marker_image)
+        # plt.show()
         white_block = charts_rgb[18]
         wb_gain = np.max(white_block) / white_block
         white_point = 1 / wb_gain
@@ -91,9 +94,13 @@ class ImageColorCorrection:
             rgb_gain, cct, white_point = self.colorCheckerWhiteBalance(wb_image)
         elif self.method.lower() == "multiple_light":
             rgb_gain, cct, white_point = self.multipleLightWhitePaperWhiteBalance(wb_image)
+        else:
+            raise ValueError(f'{self.__method}')
         self.rgb_gain = rgb_gain
         self.cct = cct
-        print(self.rgb_gain, self.cct )
+        print('rgb_gain: ', self.rgb_gain)
+        print('cct: ', self.cct )
+
 
     def apply_wb_and_ccm(self, image, image_color_space):
         image_temp = image.copy()
@@ -119,7 +126,7 @@ class ImageColorCorrection:
             image_temp = gamma_reverse(image_temp)
         elif image_color_space.lower() == "linear" and self.ccm_cs.lower() == "srgb":
             image_temp = gamma(image_temp)
-        return image_temp
+        return image_temp, image_wb_tmp
 
     def correctImage(self, image, image_color_space):
         if isinstance(self.cct, np.ndarray):

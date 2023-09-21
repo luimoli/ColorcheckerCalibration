@@ -25,6 +25,10 @@ def deltaE76(Lab1, Lab2):
     d_E = np.linalg.norm(Lab1 - Lab2, axis=-1)
     return d_E
 
+def deltaC76(Lab1, Lab2):
+    d_C = np.linalg.norm(Lab1[..., 1:] - Lab2[..., 1:], axis=-1)
+    return d_C
+
 def rgb2lab(data):
     data = np.clip(data, 0, 1) #TODO
     data = np.float32(data)
